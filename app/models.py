@@ -2,6 +2,8 @@ from app import db
 from flask_login import UserMixin
 from app import login
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
+
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -9,6 +11,15 @@ class User(UserMixin, db.Model):
     password = db.Column(db.String(128), nullable=False)
     role = db.Column(db.String(10), nullable=False)
     sklad = db.Column(db.String(20), nullable=True)
+
+    def set_password(self, raw_password):
+        """Uloží hash hesla do sloupce password."""
+        self.password = generate_password_hash(raw_password)
+
+    def check_password(self, raw_password):
+        """Ověří heslo proti uloženému hashi."""
+        return check_password_hash(self.password, raw_password)
+
 
 @login.user_loader
 def load_user(id):
