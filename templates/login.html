@@ -1,16 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Přihlášení</h2>
-<form method="post">
-  {{ form.hidden_tag() }}
-  <div class="mb-3">
-    {{ form.username.label(class="form-label") }}
-    {{ form.username(class="form-control") }}
-  </div>
-  <div class="mb-3">
-    {{ form.password.label(class="form-label") }}
-    {{ form.password(class="form-control") }}
-  </div>
-  {{ form.submit(class="btn btn-primary") }}
-</form>
+  <h2>Přihlášení</h2>
+  <form method="post">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+      {{ form.username.label(class="form-label") }}
+      {{ form.username(class="form-control") }}
+    </div>
+
+    <div class="mb-3">
+      {{ form.password.label(class="form-label") }}
+      {{ form.password(class="form-control") }}
+    </div>
+
+    <div class="form-check mb-3">
+      {{ form.remember_me(class="form-check-input", id="rememberMe") }}
+      {{ form.remember_me.label(class="form-check-label", for="rememberMe") }}
+    </div>
+
+    {{ form.submit(class="btn btn-primary") }}
+  </form>
 {% endblock %}
