@@ -1,22 +1,26 @@
+# manage.py
+
+import os
 import click
 from flask.cli import with_appcontext
+
+# důležité: nejprve import tvé Flask aplikace
 from app import app, db
 from app.models import User
-
-app.cli.add_command(create_admin)
 
 @click.command("create-admin")
 @click.argument("username")
 @click.argument("password")
-@click.option("--role",    default="admin",    help="Role nového uživatele")
-@click.option("--sklad",   default="Pardubice", help="Výchozí sklad")
+@click.option("--role",  default="admin",    help="Role nového uživatele")
+@click.option("--sklad", default="Pardubice", help="Výchozí sklad")
 @with_appcontext
 def create_admin(username, password, role, sklad):
     """
-    CLI příkaz: flask create-admin USERNAME PASSWORD [--role] [--sklad]
+    Vytvoří nového uživatele s rolí admin.
+    Použití: flask create-admin USERNAME PASSWORD [--role] [--sklad]
     """
     if User.query.filter_by(username=username).first():
-        click.echo(f"⚠️ Uživatel '{username}' už existuje, nic se nevytváří.")
+        click.secho(f"⚠️  Uživatel '{username}' už existuje, přeskočeno.", fg="yellow")
         return
 
     u = User(
@@ -24,9 +28,16 @@ def create_admin(username, password, role, sklad):
         role=role,
         sklad=sklad
     )
-    # metoda u.set_password() musí existovat ve vašem User modelu a zapsat hash do u.password
+    # metoda set_password uloží hash do sloupce password
     u.set_password(password)
     db.session.add(u)
     db.session.commit()
+    click.secho(f"✅ Admin '{username}' vytvořen s rolí '{role}' a skladem '{sklad}'.", fg="green")
 
-    click.echo(f"✅ Admin '{username}' vytvořen s rolí '{role}' a skladem '{sklad}'.")
+# registrujeme náš příkaz pod Flask CLI
+app.cli.add_command(create_admin)
+
+
+if __name__ == "__main__":
+    # pokud bys chtěl spustit tuto appku
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
