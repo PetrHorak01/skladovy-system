@@ -1,12 +1,13 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, IntegerField, SelectField
 from wtforms.validators import DataRequired, NumberRange
-from wtforms import HiddenField
+from wtforms import HiddenField, BooleanField
 
 class LoginForm(FlaskForm):
-    username = StringField('Uživatelské jméno', validators=[DataRequired()])
-    password = PasswordField('Heslo', validators=[DataRequired()])
-    submit = SubmitField('Přihlásit se')
+    username    = StringField('Uživatelské jméno', validators=[DataRequired()])
+    password    = PasswordField('Heslo', validators=[DataRequired()])
+    remember_me = BooleanField('Pamatovat si mě')  # ← toto přidá
+    submit      = SubmitField('Přihlásit')
 
 class AddProductForm(FlaskForm):
     name = StringField('Název produktu', validators=[DataRequired()])
