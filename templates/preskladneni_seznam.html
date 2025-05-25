@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Seznam nevyřízených přeskladnění</h2>
+
+<table class="table table-bordered table-sm text-center align-middle">
+  <thead>
+    <tr>
+      <th>Číslo</th>
+      <th>Cílový sklad</th>
+      <th>Vytvořil</th>
+      <th>Vytvořeno</th>
+      <th>Akce</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in transfers %}
+    <tr>
+      <td>{{ t.id }}</td>
+      <td>{{ t.target_sklad }}</td>
+      <td>{{ t.created_by }}</td>
+      <td>{{ t.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+      <td>
+        <a href="{{ url_for('preskladneni_detail', transfer_id=t.id, z='seznam') }}"
+           class="btn btn-sm btn-outline-primary">Detail</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<a href="{{ url_for('preskladnit') }}" class="btn btn-outline-secondary mt-3">
+  Zpět na přeskladnění
+</a>
+{% endblock %}

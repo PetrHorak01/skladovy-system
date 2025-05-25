@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Roční přehled přesčasů – {{ rok }}</h2>
+<a href="{{ url_for('prescasy') }}" class="btn btn-secondary mb-3">Zpět na měsíční přehled</a>
+
+<table class="table table-bordered text-center align-middle">
+  <thead>
+    <tr>
+      <th>Uživatel</th>
+      <th>Classic</th>
+      <th>Deluxe</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for user in uzivatele %}
+      <tr{% if user == 'Celkem' %} class="fw-bold"{% endif %}>
+        <td>{{ user }}</td>
+        <td>{{ data[user]['classic'] }}</td>
+        <td>{{ data[user]['deluxe'] }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

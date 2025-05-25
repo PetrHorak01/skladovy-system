@@ -1,0 +1,132 @@
+{# templates/inventura.html #}
+{% extends "base.html" %}
+{% block content %}
+<h2>Inventura skladu {{ sklad }}</h2>
+
+<div class="mb-3">
+  {% if mode == 'preview' %}
+    <a href="{{ url_for('inventura', sklad=sklad) }}" class="btn btn-secondary">
+      ⬅️ Zpět k inventuře
+    </a>
+  {% else %}
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+      Zpět na přehled
+    </a>
+  {% endif %}
+  <a href="{{ url_for('export_inventory', sklad=sklad) }}"
+     class="btn btn-outline-secondary">Export stavu</a>
+</div>
+
+{% if current_user.role == 'admin' %}
+<form method="get" class="mb-3">
+  <label class="form-label me-2">Sklad</label>
+  <select name="sklad" class="form-select d-inline-block w-auto"
+          onchange="this.form.submit()">
+    {% for s in sklady %}
+      <option value="{{ s }}" {% if s==sklad %}selected{% endif %}>{{ s }}</option>
+    {% endfor %}
+  </select>
+</form>
+{% endif %}
+
+{# ======= EDIT MODE ======= #}
+{% if mode == 'edit' %}
+<form method="post">
+  <div class="mb-4">
+    <button name="save_inventura"    class="btn btn-primary me-2">
+      Uložit inventuru
+    </button>
+    <button name="submit_inventura"  class="btn btn-success">
+      Odeslat inventuru
+    </button>
+  </div>
+
+  {# cyklus přes čtyři kategorie #}
+  {% for kat,label in [
+      ('saty','Šaty'),
+      ('doplnky','Doplňky'),
+      ('boty','Boty'),
+      ('ostatni','Ostatní')
+  ] %}
+    <h4>{{ label }}</h4>
+    <table class="table table-bordered table-sm text-center mb-4">
+      <thead class="table-light">
+        <tr>
+          <th>Název</th>
+          {% if kat in ['saty','doplnky'] %}<th>Barva</th>{% endif %}
+          {% if kat == 'saty' %}<th>Řešení zad</th>{% endif %}
+          {% for v in velikosti[kat] %}
+            <th>{{ v if v else '-' }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data_by_cat[kat] %}
+        <tr>
+          <td>{{ row.name }}</td>
+          {% if kat in ['saty','doplnky'] %}
+            <td>{{ row.color or '–' }}</td>
+          {% endif %}
+          {% if kat == 'saty' %}
+            <td>{{ row.back_solution or '–' }}</td>
+          {% endif %}
+          {% for v in velikosti[kat] %}
+            {% set cell = row.qtys[v] %}
+            {% set q = cell.new %}
+            <td class="{% if q is not none %}bg-success-subtle{% else %}bg-danger-subtle{% endif %}">
+              <input
+                type="number"
+                min="0"
+                name="qty_{{ row.product_id }}_{{ v }}"
+                value="{{ q if q is not none else '' }}"
+                class="form-control form-control-sm"
+                style="width:70px;"
+                oninput="updateCellColor(this)">
+            </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endfor %}
+</form>
+{% endif %}
+
+{# ======= PREVIEW MODE ======= #}
+{% if mode == 'preview' %}
+<h3>Náhled rozdílů</h3>
+<table class="table table-bordered table-sm text-center mb-4">
+  <thead class="table-light">
+    <tr>
+      <th>Produkt</th><th>Velikost</th><th>Stará</th><th>Nová</th><th>Delta</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for d in diffs %}
+    <tr>
+      <td>{{ d.label }}</td>
+      <td>{{ d.size }}</td>
+      <td>{{ d.old }}</td>
+      <td>{{ d.new }}</td>
+      <td class="{% if d.delta<0 %}text-danger{% else %}text-success{% endif %}">
+        {{ d.delta }}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<form method="post">
+  <button name="confirm_inventura" class="btn btn-success">
+    Potvrdit inventuru
+  </button>
+</form>
+{% endif %}
+
+<script>
+function updateCellColor(el) {
+  const td = el.parentElement;
+  td.classList.toggle('bg-success-subtle', el.value.trim() !== '');
+  td.classList.toggle('bg-danger-subtle', el.value.trim() === '');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Detail přeskladnění č. {{ transfer.id }}</h2>
+
+{% if zpet == 'archiv' %}
+  <a href="{{ url_for('preskladneni_archiv') }}" class="btn btn-secondary mb-3">Zpět do archivu</a>
+{% else %}
+  <a href="{{ url_for('preskladneni_seznam') }}" class="btn btn-secondary mb-3">Zpět na seznam</a>
+{% endif %}
+
+<table class="table table-bordered table-sm text-center align-middle">
+  <thead class="table-light">
+    <tr>
+      <th>Produkt</th>
+      <th>Velikost</th>
+      <th>Množství</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in polozky %}
+    <tr>
+      <td>{{ p.label }}</td>
+      <td>{{ p.size }}</td>
+      <td>{{ p.quantity }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{# Potvrzení naskladnění #}
+{% if current_user.role == 'admin'
+      or current_user.sklad == 'Pardubice'
+      or current_user.sklad == transfer.target_sklad %}
+  {% if transfer.status == 'v_tranzitu' %}
+    <form method="POST">
+      <button type="submit" class="btn btn-success mt-3">Potvrdit naskladnění</button>
+    </form>
+  {% else %}
+    <p class="mt-3 text-success">Toto přeskladnění bylo již potvrzeno.</p>
+  {% endif %}
+{% endif %}
+
+{# Export do PDF #}
+<a href="{{ url_for('export_transfer', transfer_id=transfer.id) }}"
+   class="btn btn-outline-secondary mt-3">
+  Export PDF
+</a>
+
+{% endblock %}

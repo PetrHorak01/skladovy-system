@@ -1,0 +1,67 @@
+{# templates/naskladnit.html #}
+{% extends "base.html" %}
+{% block content %}
+<h2>Naskladnit</h2>
+<a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-3">Zpět na přehled</a>
+
+<div class="mb-3">
+  <a href="{{ url_for('naskladnit', kategorie='saty') }}"
+     class="btn btn-outline-primary {% if vybrana_kategorie == 'saty' %}active{% endif %}">
+    Šaty
+  </a>
+  <a href="{{ url_for('naskladnit', kategorie='doplnky') }}"
+     class="btn btn-outline-primary {% if vybrana_kategorie == 'doplnky' %}active{% endif %}">
+    Doplňky
+  </a>
+  <a href="{{ url_for('naskladnit', kategorie='boty') }}"
+     class="btn btn-outline-primary {% if vybrana_kategorie == 'boty' %}active{% endif %}">
+    Boty
+  </a>
+  <a href="{{ url_for('naskladnit', kategorie='ostatni') }}"
+     class="btn btn-outline-primary {% if vybrana_kategorie == 'ostatni' %}active{% endif %}">
+    Ostatní
+  </a>
+</div>
+
+<form method="POST">
+  {{ form.hidden_tag() }}
+  <input type="hidden" name="kategorie" value="{{ vybrana_kategorie }}">
+
+  {# SKLAD – admin může volit #}
+  {% if current_user.role == 'admin' %}
+    <div class="mb-3">
+      {{ form.sklad.label(class="form-label") }}
+      {{ form.sklad(class="form-select") }}
+    </div>
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="{{ form.product_id.id }}" class="form-label">
+      {{ form.product_id.label.text }}
+    </label>
+    <select name="{{ form.product_id.name }}"
+            id="{{ form.product_id.id }}"
+            class="form-select">
+      {% for val, _ in form.product_id.choices %}
+        {% set p = produkty_dict[val] %}
+        <option value="{{ val }}"
+                {% if form.product_id.data == val %}selected{% endif %}>
+          {{ p.variant_label }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    {{ form.size.label(class="form-label") }}
+    {{ form.size(class="form-select") }}
+  </div>
+
+  <div class="mb-3">
+    {{ form.quantity.label(class="form-label") }}
+    {{ form.quantity(class="form-control") }}
+  </div>
+
+  {{ form.submit(class="btn btn-success") }}
+</form>
+{% endblock %}

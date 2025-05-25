@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Přeskladnění {{ transfer.id }}</title></head>
+<body>
+  <h1>Přeskladnění č. {{ transfer.id }}</h1>
+  <p><strong>Ze skladu:</strong> {{ transfer.source_sklad }}<br>
+     <strong>Do skladu:</strong> {{ transfer.target_sklad }}<br>
+     <strong>Vytvořil:</strong> {{ transfer.created_by }},
+     {{ transfer.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+
+  <table border="1" cellspacing="0" cellpadding="4">
+    <thead>
+      <tr><th>Produkt</th><th>Velikost</th><th>Množství</th></tr>
+    </thead>
+    <tbody>
+      {% for p in polozky %}
+      <tr>
+        <td>{{ p.label }}</td>
+        <td>{{ p.size }}</td>
+        <td>{{ p.quantity }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

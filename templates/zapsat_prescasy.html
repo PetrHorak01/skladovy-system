@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Zapsat přesčasy</h2>
+<a href="{{ url_for('prescasy') }}" class="btn btn-secondary mb-3">Zpět</a>
+
+<form method="POST">
+  {% if current_user.role == 'admin' %}
+    <div class="mb-3">
+      <label for="uzivatel" class="form-label">Uživatel</label>
+      <select name="uzivatel" id="uzivatel" class="form-select" required>
+        {% for u in uzivatele %}
+          <option value="{{ u.username }}">{{ u.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="mesic" class="form-label">Měsíc</label>
+      <select name="mesic" id="mesic" class="form-select" required>
+        {% for val, nazev in mesice %}
+          <option value="{{ val }}" {% if val == current_month %}selected{% endif %}>{{ nazev }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="classic" class="form-label">Classic (hodiny)</label>
+    <input type="number" name="classic" id="classic" class="form-control" value="0" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="deluxe" class="form-label">DeLuxe (hodiny)</label>
+    <input type="number" name="deluxe" id="deluxe" class="form-control" value="0" required>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Zapsat</button>
+</form>
+{% endblock %}

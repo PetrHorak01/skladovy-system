@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-3">Historie změn</h2>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a href="{{ url_for('dashboard') }}" class="btn btn-secondary flex-shrink-0">Zpět na přehled</a>
+</div>
+
+<form method="get" class="row gx-2 gy-2 align-items-end mb-4">
+  <div class="col-12 col-md-auto">
+    <label for="user" class="form-label small">Uživatel</label>
+    <select name="user" id="user" class="form-select">
+      {% for u in users %}
+        <option value="{{ u }}" {% if u == selected_user %}selected{% endif %}>{{ u }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-12 col-md-auto">
+    <label for="sklad" class="form-label small">Sklad</label>
+    <select name="sklad" id="sklad" class="form-select">
+      {% for s in sklady %}
+        <option value="{{ s }}" {% if s == selected_sklad %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-12 col-md-auto">
+    <label for="od" class="form-label small">Od</label>
+    <input type="text" name="od" id="od" class="form-control" placeholder="dd.mm.rrrr" value="{{ od }}">
+  </div>
+  <div class="col-12 col-md-auto">
+    <label for="do" class="form-label small">Do</label>
+    <input type="text" name="do" id="do" class="form-control" placeholder="dd.mm.rrrr" value="{{ do }}">
+  </div>
+  <div class="col-12 col-md-auto">
+    <button type="submit" class="btn btn-primary w-100">Filtrovat</button>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-bordered table-sm text-center align-middle mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>Datum a čas</th>
+        <th>Uživatel</th>
+        <th>Sklad</th>
+        <th>Produkt</th>
+        <th>Velikost</th>
+        <th>Typ změny</th>
+        <th>Množství</th>
+        <th>Poznámka</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in zaznamy %}
+      <tr>
+        <td class="small">{{ e.timestamp }}</td>
+        <td class="small">{{ e.user }}</td>
+        <td class="small">{{ e.sklad }}</td>
+        <td class="small text-start">{{ e.produkt }}</td>
+        <td class="small">{{ e.size }}</td>
+        <td class="small">{{ e.change }}</td>
+        <td class="small">{{ e.amount }}</td>
+        <td class="small text-start">{{ e.note }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

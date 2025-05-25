@@ -1,0 +1,126 @@
+{# templates/preskladnit.html #}
+{% extends "base.html" %}
+{% block content %}
+  <h2>Přeskladnit zboží</h2>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary mb-2">Zpět na přehled</a>
+  <a href="{{ url_for('preskladneni_seznam') }}" class="btn btn-outline-primary mb-2">Seznam přeskladnění</a>
+  <a href="{{ url_for('preskladneni_archiv') }}" class="btn btn-outline-dark mb-2">Archiv přeskladnění</a>
+
+  <form method="post" action="{{ url_for('preskladnit') }}">
+
+    {# 1) Výběr zdrojového skladu #}
+    <div class="mb-3">
+      <label for="source_sklad" class="form-label"><strong>Ze skladu:</strong></label>
+      <select name="source_sklad" id="source_sklad"
+              class="form-select d-inline-block w-auto"
+              onchange="this.form.submit()">
+        {% for s in sklady %}
+          <option value="{{ s }}" {% if s == source_sklad %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    {# 2) Seznam produktů pro přidání, automaticky zahrnuje i 'ostatni' #}
+    {% for kat, produkty in produkty_podle_kategorii.items() %}
+      <h4 class="mt-4 text-capitalize">{{ kat }}</h4>
+      <table class="table table-bordered table-sm text-center align-middle">
+        <thead>
+          <tr>
+            <th>Název</th>
+            {% if kat != 'boty' %}<th>Barva</th>{% endif %}
+            {% if kat == 'saty' %}<th>Řešení zad</th>{% endif %}
+            {% for v in velikosti[kat] %}<th>{{ v if v else '-' }}</th>{% endfor %}
+            <th>Přidat</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in produkty %}
+            <tr>
+              <td>{{ p.name }}</td>
+              {% if kat != 'boty' %}<td>{{ p.color or '-' }}</td>{% endif %}
+              {% if kat == 'saty' %}<td>{{ p.back_solution or '-' }}</td>{% endif %}
+              {% for v in velikosti[kat] %}
+                {% set count = p.velikosti[v] %}
+                <td class="
+                     {% if count == 0 %}bg-danger-subtle
+                     {% elif count == 1 %}bg-success-subtle
+                     {% else %}bg-success{% endif %}">
+                  {{ count }}
+                </td>
+              {% endfor %}
+              <td>
+                <button type="submit" name="add_product" value="{{ p.id }}"
+                        class="btn btn-sm btn-outline-success">➕</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endfor %}
+
+    {# 3) Košík k přeskladnění, včetně 'ostatni' #}
+    {% if kosik_saty or kosik_boty or kosik_doplnky or kosik_ostatni %}
+      <h3 class="mt-5">Košík k přeskladnění</h3>
+      {% for nadpis, kosik, kat in [
+          ('Šaty', kosik_saty, 'saty'),
+          ('Boty', kosik_boty, 'boty'),
+          ('Doplňky', kosik_doplnky, 'doplnky'),
+          ('Ostatní', kosik_ostatni, 'ostatni')] %}
+        {% if kosik %}
+          <h5 class="mt-4">{{ nadpis }}</h5>
+          <table class="table table-bordered table-sm text-center align-middle">
+            <thead>
+              <tr>
+                <th>Název</th>
+                {% if kat != 'boty' %}<th>Barva</th>{% endif %}
+                {% if kat == 'saty' %}<th>Řešení zad</th>{% endif %}
+                {% for v in velikosti[kat] %}<th>{{ v if v else '-' }}</th>{% endfor %}
+                <th>Odebrat</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in kosik %}
+                <tr>
+                  <td>{{ p.name }}</td>
+                  {% if kat != 'boty' %}<td>{{ p.color or '-' }}</td>{% endif %}
+                  {% if kat == 'saty' %}<td>{{ p.back_solution or '-' }}</td>{% endif %}
+                  {% for v in velikosti[kat] %}
+                    {% set qty = p.velikosti[v] %}
+                    <td>
+                      <input type="number" min="0"
+                             name="velikost_{{ p.id }}_{% if v is none %}{% else %}{{ v }}{% endif %}"
+                             value="{{ qty }}"
+                             class="form-control form-control-sm"
+                             style="width:70px;">
+                    </td>
+                  {% endfor %}
+                  <td>
+                    <button type="submit" name="remove_product" value="{{ p.id }}"
+                            class="btn btn-sm btn-outline-danger">✖️</button>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+      {% endfor %}
+
+      {# 4) Cílový sklad a akční tlačítko #}
+      <div class="d-flex justify-content-between align-items-end mt-4">
+        <div>
+          <label for="target_sklad" class="form-label mb-0 me-2"><strong>Do skladu:</strong></label>
+          <select name="target_sklad" id="target_sklad"
+                  class="form-select d-inline-block w-auto">
+            {% for s in sklady %}
+              <option value="{{ s }}" {% if s == target_sklad %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <button type="submit" name="preskladnit" class="btn btn-primary">Přeskladnit</button>
+        </div>
+      </div>
+    {% endif %}
+
+  </form>
+{% endblock %}

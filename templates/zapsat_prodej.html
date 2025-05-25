@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Zapsat prodeje</h2>
+<a href="{{ url_for('prodeje') }}" class="btn btn-secondary mb-3">Zpět</a>
+
+<form method="POST">
+  {% if current_user.role == "admin" %}
+    <div class="mb-3">
+      <label for="uzivatel" class="form-label">Uživatel</label>
+      <select name="uzivatel" class="form-select" required>
+        {% for u in uzivatele %}
+          <option value="{{ u.username }}">{{ u.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="mesic" class="form-label">Měsíc</label>
+      <select name="mesic" class="form-select">
+        {% for cislo, nazev in mesice %}
+          <option value="{{ cislo }}" {% if cislo == aktualni_mesic %}selected{% endif %}>{{ nazev }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="zkousky" class="form-label">Počet zkoušek</label>
+    <input type="number" name="zkousky" class="form-control" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="prodeje" class="form-label">Počet prodejů</label>
+    <input type="number" name="prodeje" class="form-control" required>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Uložit</button>
+</form>
+{% endblock %}

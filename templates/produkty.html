@@ -1,0 +1,89 @@
+{# templates/produkty.html #}
+{% extends "base.html" %}
+{% block content %}
+<h2>Správa produktů</h2>
+<a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary mb-2">Zpět na přehled</a>
+
+
+<ul class="nav nav-tabs mb-3">
+  {% for cat,label in [
+      ('saty','Šaty'),
+      ('boty','Boty'),
+      ('doplnky','Doplňky'),
+      ('ostatni','Ostatní')] %}
+    <li class="nav-item">
+      <a class="nav-link {% if vybrana_kategorie==cat %}active{% endif %}"
+         href="{{ url_for('produkty', kategorie=cat) }}">
+        {{ label }}
+      </a>
+    </li>
+  {% endfor %}
+</ul>
+
+<form method="post"
+      action="{% if uprava %}
+                {{ url_for('edit_product', product_id=uprava) }}
+              {% else %}
+                {{ url_for('produkty', kategorie=vybrana_kategorie) }}
+              {% endif %}">
+  {{ form.hidden_tag() }}
+  <div class="mb-3">
+    <label class="form-label">Název</label>
+    {{ form.name(class="form-control") }}
+  </div>
+
+  {% if vybrana_kategorie in ['saty','doplnky'] %}
+    <div class="mb-3">
+      <label class="form-label">Barva</label>
+      {{ form.color(class="form-control") }}
+    </div>
+  {% endif %}
+
+  {% if vybrana_kategorie=='saty' %}
+    <div class="mb-3">
+      <label class="form-label">Řešení zad</label>
+      {{ form.back_solution(class="form-control") }}
+    </div>
+  {% endif %}
+
+  <button type="submit" class="btn btn-primary">
+    {% if uprava %}Uložit změny{% else %}Přidat produkt{% endif %}
+  </button>
+</form>
+
+<table class="table table-striped mt-4">
+  <thead>
+    <tr>
+      <th>Název</th>
+      {% if vybrana_kategorie in ['saty','doplnky'] %}<th>Barva</th>{% endif %}
+      {% if vybrana_kategorie == 'saty' %}<th>Řešení zad</th>{% endif %}
+      <th>Akce</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in produkty %}
+      <tr>
+        <td>{{ p.name }}</td>
+        {% if vybrana_kategorie in ['saty','doplnky'] %}
+          <td>{{ p.color or '-' }}</td>
+        {% endif %}
+        {% if vybrana_kategorie == 'saty' %}
+          <td>{{ p.back_solution or '-' }}</td>
+        {% endif %}
+        <td>
+          <a href="{{ url_for('edit_product', product_id=p.id) }}?kategorie={{ vybrana_kategorie }}"
+             class="btn btn-sm btn-outline-primary">🖉</a>
+
+          <form method="post"
+                action="{{ url_for('delete_product', product_id=p.id) }}"
+                style="display:inline"
+                onsubmit="return confirm('Opravdu smazat?');">
+            {{ form.csrf_token }}
+            <button type="submit" class="btn btn-sm btn-outline-danger">✖️</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

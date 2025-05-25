@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Roční přehled prodejů – {{ rok }}</h2>
+
+<a href="{{ url_for('prodeje') }}" class="btn btn-secondary mb-3">Zpět na měsíční přehled</a>
+
+<table class="table table-bordered text-center align-middle">
+  <thead>
+    <tr>
+      <th>Uživatel</th>
+      <th>Zkoušky</th>
+      <th>Prodeje</th>
+      <th>Úspěšnost</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for jmeno in uzivatele %}
+      <tr{% if jmeno == 'Celkem' %} class="fw-bold"{% endif %}>
+        <td>{{ jmeno }}</td>
+        <td>{{ data[jmeno]["zkousky"] }}</td>
+        <td>{{ data[jmeno]["prodeje"] }}</td>
+        <td>{{ data[jmeno]["uspesnost"] }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

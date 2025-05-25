@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-3">Skladový systém – Šaty za hubičku</h2>
+
+{# ===== tlačítka nad dashboardem ===== #}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a href="{{ url_for('logout') }}" class="btn btn-secondary flex-shrink-0">Odhlásit</a>
+  {% if current_user.role == 'admin' %}
+    <a href="{{ url_for('produkty') }}" class="btn btn-primary flex-shrink-0">Správa produktů</a>
+    <a href="{{ url_for('uzivatele') }}" class="btn btn-warning flex-shrink-0">Správa uživatelů</a>
+  {% endif %}
+  {% if selected_sklad != 'Celkem' or current_user.role == 'admin' %}
+    <a href="{{ url_for('naskladnit', kategorie='saty') }}" class="btn btn-success flex-shrink-0">Naskladnit</a>
+    <a href="{{ url_for('vyskladnit', kategorie='saty') }}" class="btn btn-danger flex-shrink-0">Vyskladnit</a>
+    <a href="{{ url_for('prodeje') }}" class="btn btn-outline-info flex-shrink-0">Prodeje</a>
+    <a href="{{ url_for('prescasy') }}" class="btn btn-outline-secondary flex-shrink-0">Přesčasy</a>
+    {% if current_user.role == 'admin' or current_user.sklad == 'Pardubice' %}
+      <a href="{{ url_for('preskladnit') }}" class="btn btn-outline-primary flex-shrink-0">Přeskladnit</a>
+    {% elif transfers_na_ceste %}
+      <a href="{{ url_for('preskladneni_seznam') }}" class="btn btn-outline-primary flex-shrink-0">
+        Přeskladnit ({{ transfers_na_ceste }})
+      </a>
+    {% endif %}
+    <a href="{{ url_for('historie') }}" class="btn btn-info flex-shrink-0">Historie změn</a>
+    <a href="{{ url_for('export_inventory', sklad=selected_sklad) }}" class="btn btn-outline-secondary flex-shrink-0">Export</a>
+    <a href="{{ url_for('inventura') }}" class="btn btn-outline-secondary flex-shrink-0">Inventura</a>
+  {% endif %}
+</div>
+
+{# ===== filtr a vyhledávání ===== #}
+<form method="get" class="row gx-2 gy-2 align-items-end mb-4">
+  <div class="col-12 col-md-auto">
+    <label for="sklad" class="form-label small">Vyber sklad</label>
+    <select name="sklad" id="sklad" class="form-select" onchange="this.form.submit()">
+      {% for s in sklady %}
+        <option value="{{ s }}" {% if s == selected_sklad %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-12 col-md">
+    <label for="hledat" class="form-label small">Vyhledat produkt</label>
+    <input type="text" name="hledat" id="hledat" class="form-control"
+           placeholder="Název produktu" value="{{ hledat }}">
+  </div>
+  <div class="col-12 col-md-auto">
+    <button type="submit" class="btn btn-primary w-100">Hledat</button>
+  </div>
+</form>
+
+{# ===== záložky ===== #}
+<ul class="nav nav-tabs mb-3" id="tabMenu">
+  <li class="nav-item"><a class="nav-link {% if active_tab=='saty' %}active{% endif %}" data-bs-toggle="tab" href="#saty">Šaty</a></li>
+  <li class="nav-item"><a class="nav-link {% if active_tab=='doplnky' %}active{% endif %}" data-bs-toggle="tab" href="#doplnky">Doplňky</a></li>
+  <li class="nav-item"><a class="nav-link {% if active_tab=='boty' %}active{% endif %}" data-bs-toggle="tab" href="#boty">Boty</a></li>
+  <li class="nav-item"><a class="nav-link {% if active_tab=='ostatni' %}active{% endif %}" data-bs-toggle="tab" href="#ostatni">Ostatní</a></li>
+</ul>
+
+<div class="tab-content">
+
+  {# --- ŠATY --- #}
+  <div class="tab-pane fade {% if active_tab=='saty' %}show active{% endif %}" id="saty">
+    <h4 class="h5">Šaty</h4>
+    <div class="table-responsive mb-4">
+      <table class="table table-bordered table-sm text-center align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Název</th><th>Barva</th><th>Řešení zad</th>
+            {% for v in velikosti_saty %}<th>{{ v }}</th>{% endfor %}
+            <th>Poznámka</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in tabulka_saty %}
+            <tr>
+              <td>{{ p.name }}</td>
+              <td>{{ p.color or '-' }}</td>
+              <td>{{ p.back_solution or '-' }}</td>
+              {% for v in velikosti_saty %}
+                {% set count = p.sizes[v] %}
+                <td class="{% if count==0 %}bg-danger-subtle{% elif count==1 %}bg-success-subtle{% else %}bg-success{% endif %}">
+                  {{ count }}
+                </td>
+              {% endfor %}
+              <td>
+                {% set key = (p.id, None, selected_sklad) %}
+                {% if key in stocks and stocks[key].note %}
+                  <button type="button" class="btn btn-sm btn-outline-primary"
+                          data-bs-toggle="modal" data-bs-target="#noteModal{{ p.id }}_none"
+                          data-tab="saty">📝 Upravit</button>
+                {% else %}
+                  <button type="button" class="btn btn-sm btn-outline-secondary"
+                          data-bs-toggle="modal" data-bs-target="#noteModal{{ p.id }}_none"
+                          data-tab="saty">Přidat</button>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# --- DOPLŇKY --- #}
+  <div class="tab-pane fade {% if active_tab=='doplnky' %}show active{% endif %}" id="doplnky">
+    <h4 class="h5">Doplňky</h4>
+    <div class="table-responsive mb-4">
+      <table class="table table-bordered table-sm text-center align-middle mb-0">
+        <thead>
+          <tr><th>Název</th><th>Barva</th><th>Množství</th><th>Poznámka</th></tr>
+        </thead>
+        <tbody>
+          {% for p in tabulka_doplnky %}
+            <tr>
+              <td>{{ p.name }}</td>
+              <td>{{ p.color or '-' }}</td>
+              {% set count = p.sizes[None] %}
+              <td class="{% if count==0 %}bg-danger-subtle{% elif count==1 %}bg-success-subtle{% else %}bg-success{% endif %}">
+                {{ count }}
+              </td>
+              <td>
+                {% set key = (p.id, None, selected_sklad) %}
+                {% if key in stocks and stocks[key].note %}
+                  <button type="button" class="btn btn-sm btn-outline-primary"
+                          data-bs-toggle="modal" data-bs-target="#noteModal{{ p.id }}_none"
+                          data-tab="doplnky">📝 Upravit</button>
+                {% else %}
+                  <button type="button" class="btn btn-sm btn-outline-secondary"
+                          data-bs-toggle="modal" data-bs-target="#noteModal{{ p.id }}_none"
+                          data-tab="doplnky">Přidat</button>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# --- BOTY --- #}
+  <div class="tab-pane fade {% if active_tab=='boty' %}show active{% endif %}" id="boty">
+    <h4 class="h5">Boty</h4>
+    <div class="table-responsive mb-4">
+      <table class="table table-bordered table-sm text-center align-middle mb-0">
+        <thead>
+          <tr><th>Název</th>{% for v in velikosti_boty %}<th>{{ v }}</th>{% endfor %}<th>Poznámka</th></tr>
+        </thead>
+        <tbody>
+          {% for p in tabulka_boty %}
+            <tr>
+              <td>{{ p.name }}</td>
+              {% for v in velikosti_boty %}
+                {% set count = p.sizes[v] %}
+                <td class="{% if count==0 %}bg-danger-subtle{% elif count==1 %}bg-success-subtle{% else %}bg-success{% endif %}">
+                  {{ count }}
+                </td>
+              {% endfor %}
+              <td>
+                {% set key = (p.id, None, selected_sklad) %}
+                {% if key in stocks and stocks[key].note %}
+                  <button type="button" class="btn btn-sm btn-outline-primary"
+                          data-bs-toggle="modal" data-bs-target="#noteModal{{ p.id }}_none"
+                          data-tab="boty">📝 Upravit</button>
+                {% else %}
+                  <button type="button" class="btn btn-sm btn-outline-secondary"
+                          data-bs-toggle="modal" data-bs-target="#noteModal{{ p.id }}_none"
+                          data-tab="boty">Přidat</button>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# --- OSTATNÍ --- #}
+  <div class="tab-pane fade {% if active_tab=='ostatni' %}show active{% endif %}" id="ostatni">
+    <h4 class="h5">Ostatní</h4>
+    <div class="table-responsive mb-4">
+      <table class="table table-bordered table-sm text-center align-middle mb-0">
+        <thead>
+          <tr><th>Název</th><th>Množství</th><th>Poznámka</th></tr>
+        </thead>
+        <tbody>
+          {% for p in tabulka_ostatni %}
+            <tr>
+              <td>{{ p.name }}</td>
+              {% set count = p.sizes[None] %}
+              <td class="{% if count==0 %}bg-danger-subtle{% elif count==1 %}bg-success-subtle{% else %}bg-success{% endif %}">
+                {{ count }}
+              </td>
+              <td>
+                {% set key = (p.id, None, selected_sklad) %}
+                {% if key in stocks and stocks[key].note %}
+                  <button type="button" class="btn btn-sm btn-outline-primary"
+                          data-bs-toggle="modal" data-bs-target="#noteModal{{ p.id }}_none"
+                          data-tab="ostatni">📝 Upravit</button>
+                {% else %}
+                  <button type="button" class="btn btn-sm btn-outline-secondary"
+                          data-bs-toggle="modal" data-bs-target="#noteModal{{ p.id }}_none"
+                          data-tab="ostatni">Přidat</button>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+{# Modal s poznámkami – beze změny #}
+{% for (pid, size, sklad), st in stocks.items() if sklad == selected_sklad %}
+  <div class="modal fade" id="noteModal{{ pid }}_none" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content">
+      <form method="POST"
+            action="{{ url_for('poznamka', product_id=pid, sklad=sklad) }}">
+        <input type="hidden" name="size" value="{{ size }}">
+        <input type="hidden" name="tab"   value="{{ active_tab }}">
+        <div class="modal-header">
+          <h5 class="modal-title">Poznámka – {{ st.product.name }}{% if size %} (vel. {{ size }}){% endif %}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <textarea name="note" class="form-control" rows="4">{{ st.note or '' }}</textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Uložit</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zavřít</button>
+        </div>
+      </form>
+    </div></div>
+  </div>
+{% endfor %}
+
+<script>
+  // nasloucháme otevření modálu a píšeme správný tab
+  document.addEventListener('show.bs.modal', function(e) {
+    var btn   = e.relatedTarget;
+    var tab   = btn.getAttribute('data-tab');
+    var modal = e.target;
+    var input = modal.querySelector('input[name="tab"]');
+    if(input && tab) input.value = tab;
+  });
+
+  // při načtení stránky otevři zakliknutou záložku
+  document.addEventListener("DOMContentLoaded", function() {
+    var hash = window.location.hash;
+    if (hash) {
+      var trigger = document.querySelector('a.nav-link[href="'+hash+'"]');
+      if (trigger) new bootstrap.Tab(trigger).show();
+    }
+  });
+</script>
+{% endblock %}
