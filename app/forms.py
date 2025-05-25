@@ -31,16 +31,31 @@ class StockForm(FlaskForm):
 
 
 class UserForm(FlaskForm):
-    username = StringField('Uživatelské jméno', validators=[DataRequired()])
-    password = StringField('Heslo', validators=[DataRequired()])
-    role = SelectField('Role', choices=[('admin', 'Admin'), ('skladnik', 'Skladník')], validators=[DataRequired()])
-    sklad = SelectField('Sklad (pro skladníka)', choices=[
-        ('Praha', 'Praha'),
-        ('Brno', 'Brno'),
-        ('Pardubice', 'Pardubice'),
-        ('Ostrava', 'Ostrava')
-    ], validators=[DataRequired()])
+    username = StringField(
+        'Uživatelské jméno',
+        validators=[DataRequired()]
+    )
+    password = PasswordField(
+        'Heslo',
+        validators=[DataRequired()]
+    )
+    role = SelectField(
+        'Role',
+        choices=[('admin', 'Admin'), ('skladnik', 'Skladník')],
+        validators=[DataRequired()]
+    )
+    sklad = SelectField(
+        'Sklad (pro skladníka)',
+        choices=[
+            ('Praha', 'Praha'),
+            ('Brno', 'Brno'),
+            ('Pardubice', 'Pardubice'),
+            ('Ostrava', 'Ostrava')
+        ],
+        validators=[DataRequired()]
+    )
     submit = SubmitField('Přidat uživatele')
+
     
 class SalesForm(FlaskForm):
     user_id = SelectField('Uživatel', coerce=int, validators=[DataRequired()])

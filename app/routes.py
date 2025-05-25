@@ -543,7 +543,7 @@ def vyskladnit():
 @app.route("/uzivatele", methods=["GET", "POST"])
 @login_required
 def uzivatele():
-    # jen pro admina
+    # pouze admin
     if current_user.role != "admin":
         flash("Přístup odepřen.", "danger")
         return redirect(url_for("dashboard"))
@@ -551,19 +551,20 @@ def uzivatele():
     form = UserForm()
     users = User.query.order_by(User.username).all()
 
-    # zpracovat vytvoření nového uživatele
     if form.validate_on_submit():
-        # kontrola, zda uživatel už neexistuje
+        # uživatel s tímto jménem již existuje?
         if User.query.filter_by(username=form.username.data).first():
             flash("Uživatel s tímto jménem již existuje.", "warning")
             return redirect(url_for("uzivatele"))
 
+        # vytvoření a uložení s hashem hesla
         new_user = User(
             username=form.username.data,
-            password=form.password.data,
             role=form.role.data,
             sklad=(form.sklad.data if form.role.data == "skladnik" else None)
         )
+        new_user.set_password(form.password.data)
+
         db.session.add(new_user)
         db.session.commit()
         flash("Uživatel vytvořen.", "success")
@@ -573,7 +574,7 @@ def uzivatele():
         "uzivatele.html",
         form=form,
         users=users,
-        editing=None  # žádný uživatel se právě neupravuje
+        editing=None
     )
 
 @app.route("/uzivatele/edit/<int:user_id>", methods=["GET", "POST"])
