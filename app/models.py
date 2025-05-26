@@ -1,11 +1,9 @@
-# app/models.py
-
 from app import db
 from flask_login import UserMixin
 from app import login
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-
+from sqlalchemy.orm import backref
 
 class User(UserMixin, db.Model):
     id       = db.Column(db.Integer, primary_key=True)
@@ -15,11 +13,9 @@ class User(UserMixin, db.Model):
     sklad    = db.Column(db.String(20), nullable=True)
 
     def set_password(self, raw_password):
-        """Uloží hash hesla do sloupce password."""
         self.password = generate_password_hash(raw_password)
 
     def check_password(self, raw_password):
-        """Ověří heslo proti uloženému hashi."""
         return check_password_hash(self.password, raw_password)
 
 
@@ -35,16 +31,16 @@ class Product(db.Model):
     color         = db.Column(db.String(32), nullable=True)
     back_solution = db.Column(db.String(64), nullable=True)
 
+    # vztah na Stock, potlačí SAWarning ohledně "stocks" a "product"
     stock = db.relationship(
         'Stock',
-        backref='product_vztah',
+        backref=backref('product_vztah', overlaps='stocks,product'),
         lazy=True,
-        overlaps="stocks,product"
+        overlaps='stocks,product'
     )
 
     @property
     def variant_label(self):
-        """Spojený název produktu, barvy a řešení zad."""
         parts = [self.name]
         if self.color:
             parts.append(self.color)
@@ -61,10 +57,11 @@ class Stock(db.Model):
     quantity   = db.Column(db.Integer, default=0)
     note       = db.Column(db.Text, nullable=True)
 
+    # vztah na Product, potlačí SAWarning ohledně "product_vztah"
     product = db.relationship(
         "Product",
-        backref="stocks",
-        overlaps="stock,product_vztah"
+        backref=backref('stocks', overlaps='stock,product_vztah'),
+        overlaps='stock,product_vztah'
     )
 
 
