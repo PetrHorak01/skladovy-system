@@ -30,8 +30,6 @@ def login():
     return render_template("login.html", form=form)
 
 
-
-
 @app.route("/dashboard", methods=["GET"])
 @login_required
 def dashboard():
@@ -39,9 +37,9 @@ def dashboard():
     sklady = ["Praha", "Brno", "Pardubice", "Ostrava", "Celkem"]
     selected_sklad = request.args.get("sklad") or current_user.sklad or "Praha"
     hledat = request.args.get("hledat", "").strip().lower()
-    active_tab = request.args.get("tab", "saty")  # defaultně Šaty
+    active_tab = request.args.get("tab", "saty")
 
-    # --- 2) Filtrování a načtení produktů ---
+    # --- 2) Filtrování produktů ---
     produkty_q = Product.query
     if hledat:
         produkty_q = produkty_q.filter(Product.name.ilike(f"%{hledat}%"))
@@ -51,7 +49,7 @@ def dashboard():
     velikosti_saty = list(range(32, 56, 2))
     velikosti_boty = list(range(36, 43))
 
-    # --- 4) Naplnění tabulek ---
+    # --- 4) Naplnění tabulek (jen qty>0) ---
     tabulka_saty = []
     tabulka_boty = []
     tabulka_doplnky = []
@@ -63,80 +61,56 @@ def dashboard():
             "name": produkt.name,
             "color": produkt.color,
             "back_solution": produkt.back_solution,
-            "sizes": {}
+            "sizes": {}  # budeme ukládat jen velikosti, kde qty>0
         }
 
-        # --- Šaty ---
+        # helper pro získání qty
+        def get_qty(pid, size):
+            if selected_sklad == "Celkem":
+                all_z = Stock.query.filter_by(product_id=pid, size=size).all()
+                return sum(z.quantity for z in all_z)
+            st = Stock.query.filter_by(
+                product_id=pid, size=size, sklad=selected_sklad
+            ).first()
+            return st.quantity if st else 0
+
         if produkt.category == "saty":
             for v in velikosti_saty:
-                if selected_sklad == "Celkem":
-                    all_z = Stock.query.filter_by(product_id=produkt.id, size=v).all()
-                    total = sum(z.quantity for z in all_z)
-                else:
-                    st = Stock.query.filter_by(
-                        product_id=produkt.id, size=v, sklad=selected_sklad
-                    ).first()
-                    total = st.quantity if st else 0
-                radek["sizes"][v] = total
+                qty = get_qty(produkt.id, v)
+                if qty > 0:
+                    radek["sizes"][v] = qty
             tabulka_saty.append(radek)
 
-        # --- Boty ---
         elif produkt.category == "boty":
             for v in velikosti_boty:
-                if selected_sklad == "Celkem":
-                    all_z = Stock.query.filter_by(product_id=produkt.id, size=v).all()
-                    total = sum(z.quantity for z in all_z)
-                else:
-                    st = Stock.query.filter_by(
-                        product_id=produkt.id, size=v, sklad=selected_sklad
-                    ).first()
-                    total = st.quantity if st else 0
-                radek["sizes"][v] = total
+                qty = get_qty(produkt.id, v)
+                if qty > 0:
+                    radek["sizes"][v] = qty
             tabulka_boty.append(radek)
 
-        # --- Doplňky ---
         elif produkt.category == "doplnky":
-            if selected_sklad == "Celkem":
-                all_z = Stock.query.filter_by(product_id=produkt.id, size=None).all()
-                total = sum(z.quantity for z in all_z)
-            else:
-                st = Stock.query.filter_by(
-                    product_id=produkt.id, size=None, sklad=selected_sklad
-                ).first()
-                total = st.quantity if st else 0
-            radek["sizes"][None] = total
+            qty = get_qty(produkt.id, None)
+            if qty > 0:
+                radek["sizes"][None] = qty
             tabulka_doplnky.append(radek)
 
-        # --- Ostatní ---
         elif produkt.category == "ostatni":
-            if selected_sklad == "Celkem":
-                all_z = Stock.query.filter_by(product_id=produkt.id, size=None).all()
-                total = sum(z.quantity for z in all_z)
-            else:
-                st = Stock.query.filter_by(
-                    product_id=produkt.id, size=None, sklad=selected_sklad
-                ).first()
-                total = st.quantity if st else 0
-            radek["sizes"][None] = total
+            qty = get_qty(produkt.id, None)
+            if qty > 0:
+                radek["sizes"][None] = qty
             tabulka_ostatni.append(radek)
 
-    # --- 5) Sestavení slovníku stocks včetně poznámek (size=None) ---
+    # --- 5) Poznámky (bez úprav) ---
     stocks = {}
     for produkt in produkty:
-        # nejprve přidáme poznámku (size=None) vždy jako první
         note = Stock.query.filter_by(
             product_id=produkt.id, size=None, sklad=selected_sklad
         ).first()
         if note:
             stocks[(produkt.id, None, selected_sklad)] = note
-
-        # potom hodnoty pro jednotlivé velikosti
-        if produkt.category == "saty":
-            sizes = velikosti_saty
-        elif produkt.category == "boty":
-            sizes = velikosti_boty
-        else:
-            sizes = [None]
+        sizes = (velikosti_saty if produkt.category=="saty"
+                 else velikosti_boty if produkt.category=="boty"
+                 else [None])
         for size in sizes:
             st = Stock.query.filter_by(
                 product_id=produkt.id, size=size, sklad=selected_sklad
@@ -144,7 +118,7 @@ def dashboard():
             if st:
                 stocks[(produkt.id, size, selected_sklad)] = st
 
-    # --- 6) Render šablony s active_tab ---
+    # --- 6) Render ---
     return render_template(
         "dashboard.html",
         sklady=sklady,
@@ -159,6 +133,7 @@ def dashboard():
         tabulka_ostatni=tabulka_ostatni,
         stocks=stocks
     )
+
 
 
 @app.route("/logout")

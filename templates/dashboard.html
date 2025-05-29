@@ -76,9 +76,11 @@
               <td>{{ p.color or '-' }}</td>
               <td>{{ p.back_solution or '-' }}</td>
               {% for v in velikosti_saty %}
-                {% set count = p.sizes[v] %}
-                <td class="{% if count==0 %}bg-danger-subtle{% elif count==1 %}bg-success-subtle{% else %}bg-success{% endif %}">
-                  {{ count }}
+                {% set count = p.sizes.get(v) %}
+                <td
+                  {% if count == 1 %}class="bg-success-subtle"
+                  {% elif count and count > 1 %}class="bg-success"{% endif %}>
+                  {{ count or '' }}
                 </td>
               {% endfor %}
               <td>
@@ -113,9 +115,11 @@
             <tr>
               <td>{{ p.name }}</td>
               <td>{{ p.color or '-' }}</td>
-              {% set count = p.sizes[None] %}
-              <td class="{% if count==0 %}bg-danger-subtle{% elif count==1 %}bg-success-subtle{% else %}bg-success{% endif %}">
-                {{ count }}
+              {% set count = p.sizes.get(None) %}
+              <td
+                {% if count == 1 %}class="bg-success-subtle"
+                {% elif count and count > 1 %}class="bg-success"{% endif %}>
+                {{ count or '' }}
               </td>
               <td>
                 {% set key = (p.id, None, selected_sklad) %}
@@ -142,16 +146,22 @@
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
         <thead>
-          <tr><th>Název</th>{% for v in velikosti_boty %}<th>{{ v }}</th>{% endfor %}<th>Poznámka</th></tr>
+          <tr>
+            <th>Název</th>
+            {% for v in velikosti_boty %}<th>{{ v }}</th>{% endfor %}
+            <th>Poznámka</th>
+          </tr>
         </thead>
         <tbody>
           {% for p in tabulka_boty %}
             <tr>
               <td>{{ p.name }}</td>
               {% for v in velikosti_boty %}
-                {% set count = p.sizes[v] %}
-                <td class="{% if count==0 %}bg-danger-subtle{% elif count==1 %}bg-success-subtle{% else %}bg-success{% endif %}">
-                  {{ count }}
+                {% set count = p.sizes.get(v) %}
+                <td
+                  {% if count == 1 %}class="bg-success-subtle"
+                  {% elif count and count > 1 %}class="bg-success"{% endif %}>
+                  {{ count or '' }}
                 </td>
               {% endfor %}
               <td>
@@ -185,9 +195,11 @@
           {% for p in tabulka_ostatni %}
             <tr>
               <td>{{ p.name }}</td>
-              {% set count = p.sizes[None] %}
-              <td class="{% if count==0 %}bg-danger-subtle{% elif count==1 %}bg-success-subtle{% else %}bg-success{% endif %}">
-                {{ count }}
+              {% set count = p.sizes.get(None) %}
+              <td
+                {% if count == 1 %}class="bg-success-subtle"
+                {% elif count and count > 1 %}class="bg-success"{% endif %}>
+                {{ count or '' }}
               </td>
               <td>
                 {% set key = (p.id, None, selected_sklad) %}
