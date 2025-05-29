@@ -6,30 +6,30 @@
 <div class="d-flex flex-wrap gap-2 mb-3">
   <a href="{{ url_for('logout') }}" class="btn btn-secondary flex-shrink-0">Odhlásit</a>
   {% if current_user.role == 'admin' %}
-    <a href="{{ url_for('produkty') }}" class="btn btn-primary flex-shrink-0">Správa produktů</a>
-    <a href="{{ url_for('uzivatele') }}" class="btn btn-warning flex-shrink-0">Správa uživatelů</a>
+    <a href="{{ url_for('produkty') }}" class="btn btn-primary">Správa produktů</a>
+    <a href="{{ url_for('uzivatele') }}" class="btn btn-warning">Správa uživatelů</a>
   {% endif %}
   {% if selected_sklad != 'Celkem' or current_user.role == 'admin' %}
-    <a href="{{ url_for('naskladnit', kategorie='saty') }}" class="btn btn-success flex-shrink-0">Naskladnit</a>
-    <a href="{{ url_for('vyskladnit', kategorie='saty') }}" class="btn btn-danger flex-shrink-0">Vyskladnit</a>
-    <a href="{{ url_for('prodeje') }}" class="btn btn-outline-info flex-shrink-0">Prodeje</a>
-    <a href="{{ url_for('prescasy') }}" class="btn btn-outline-secondary flex-shrink-0">Přesčasy</a>
+    <a href="{{ url_for('naskladnit', kategorie='saty') }}" class="btn btn-success">Naskladnit</a>
+    <a href="{{ url_for('vyskladnit', kategorie='saty') }}" class="btn btn-danger">Vyskladnit</a>
+    <a href="{{ url_for('prodeje') }}" class="btn btn-outline-info">Prodeje</a>
+    <a href="{{ url_for('prescasy') }}" class="btn btn-outline-secondary">Přesčasy</a>
     {% if current_user.role == 'admin' or current_user.sklad == 'Pardubice' %}
-      <a href="{{ url_for('preskladnit') }}" class="btn btn-outline-primary flex-shrink-0">Přeskladnit</a>
+      <a href="{{ url_for('preskladnit') }}" class="btn btn-outline-primary">Přeskladnit</a>
     {% elif transfers_na_ceste %}
-      <a href="{{ url_for('preskladneni_seznam') }}" class="btn btn-outline-primary flex-shrink-0">
+      <a href="{{ url_for('preskladneni_seznam') }}" class="btn btn-outline-primary">
         Přeskladnit ({{ transfers_na_ceste }})
       </a>
     {% endif %}
-    <a href="{{ url_for('historie') }}" class="btn btn-info flex-shrink-0">Historie změn</a>
-    <a href="{{ url_for('export_inventory', sklad=selected_sklad) }}" class="btn btn-outline-secondary flex-shrink-0">Export</a>
-    <a href="{{ url_for('inventura') }}" class="btn btn-outline-secondary flex-shrink-0">Inventura</a>
+    <a href="{{ url_for('historie') }}" class="btn btn-info">Historie změn</a>
+    <a href="{{ url_for('export_inventory', sklad=selected_sklad) }}" class="btn btn-outline-secondary">Export</a>
+    <a href="{{ url_for('inventura') }}" class="btn btn-outline-secondary">Inventura</a>
   {% endif %}
 </div>
 
 {# ===== filtr a vyhledávání ===== #}
 <form method="get" class="row gx-2 gy-2 align-items-end mb-4">
-  <div class="col-12 col-md-auto">
+  <div class="col-auto">
     <label for="sklad" class="form-label small">Vyber sklad</label>
     <select name="sklad" id="sklad" class="form-select" onchange="this.form.submit()">
       {% for s in sklady %}
@@ -37,13 +37,13 @@
       {% endfor %}
     </select>
   </div>
-  <div class="col-12 col-md">
+  <div class="col">
     <label for="hledat" class="form-label small">Vyhledat produkt</label>
     <input type="text" name="hledat" id="hledat" class="form-control"
            placeholder="Název produktu" value="{{ hledat }}">
   </div>
-  <div class="col-12 col-md-auto">
-    <button type="submit" class="btn btn-primary w-100">Hledat</button>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-primary">Hledat</button>
   </div>
 </form>
 
@@ -247,7 +247,6 @@
 {% endfor %}
 
 <script>
-  // nasloucháme otevření modálu a píšeme správný tab
   document.addEventListener('show.bs.modal', function(e) {
     var btn   = e.relatedTarget;
     var tab   = btn.getAttribute('data-tab');
@@ -255,8 +254,6 @@
     var input = modal.querySelector('input[name="tab"]');
     if(input && tab) input.value = tab;
   });
-
-  // při načtení stránky otevři zakliknutou záložku
   document.addEventListener("DOMContentLoaded", function() {
     var hash = window.location.hash;
     if (hash) {

@@ -12,6 +12,7 @@ from app.models import Sales
 from app.models import Overtime
 from weasyprint import HTML
 from io import BytesIO
+from sqlalchemy import func
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -28,7 +29,7 @@ def login():
             return redirect(next_page or url_for("dashboard"))
         flash("Neplatné přihlašovací údaje", "danger")
     return render_template("login.html", form=form)
-
+    
 
 @app.route("/dashboard", methods=["GET"])
 @login_required
@@ -49,76 +50,71 @@ def dashboard():
     velikosti_saty = list(range(32, 56, 2))
     velikosti_boty = list(range(36, 43))
 
-    # --- 4) Naplnění tabulek (jen qty>0) ---
+    # --- 4) Jediný bulk‐dotaz na všechna qty>0 ---
+    stock_rows = (
+        db.session.query(
+            Stock.product_id,
+            Stock.size,
+            func.sum(Stock.quantity).label("qty")
+        )
+        .filter(
+            (Stock.sklad == selected_sklad)
+            if selected_sklad != "Celkem"
+            else True
+        )
+        .group_by(Stock.product_id, Stock.size)
+        .having(func.sum(Stock.quantity) > 0)
+        .all()
+    )
+    # Převod na slovník: qty_map[product_id][size] = qty
+    qty_map = defaultdict(dict)
+    for pid, size, qty in stock_rows:
+        qty_map[pid][size] = qty
+
+    # --- 5) Naplnění tabulek jen z qty_map ---
     tabulka_saty = []
     tabulka_boty = []
     tabulka_doplnky = []
     tabulka_ostatni = []
 
-    for produkt in produkty:
-        radek = {
-            "id": produkt.id,
-            "name": produkt.name,
-            "color": produkt.color,
-            "back_solution": produkt.back_solution,
-            "sizes": {}  # budeme ukládat jen velikosti, kde qty>0
+    for p in produkty:
+        base = {
+            "id": p.id,
+            "name": p.name,
+            "color": p.color,
+            "back_solution": p.back_solution,
+            "sizes": qty_map.get(p.id, {})
         }
+        if p.category == "saty":
+            tabulka_saty.append(base)
+        elif p.category == "boty":
+            tabulka_boty.append(base)
+        elif p.category == "doplnky":
+            tabulka_doplnky.append(base)
+        elif p.category == "ostatni":
+            tabulka_ostatni.append(base)
 
-        # helper pro získání qty
-        def get_qty(pid, size):
-            if selected_sklad == "Celkem":
-                all_z = Stock.query.filter_by(product_id=pid, size=size).all()
-                return sum(z.quantity for z in all_z)
-            st = Stock.query.filter_by(
-                product_id=pid, size=size, sklad=selected_sklad
-            ).first()
-            return st.quantity if st else 0
-
-        if produkt.category == "saty":
-            for v in velikosti_saty:
-                qty = get_qty(produkt.id, v)
-                if qty > 0:
-                    radek["sizes"][v] = qty
-            tabulka_saty.append(radek)
-
-        elif produkt.category == "boty":
-            for v in velikosti_boty:
-                qty = get_qty(produkt.id, v)
-                if qty > 0:
-                    radek["sizes"][v] = qty
-            tabulka_boty.append(radek)
-
-        elif produkt.category == "doplnky":
-            qty = get_qty(produkt.id, None)
-            if qty > 0:
-                radek["sizes"][None] = qty
-            tabulka_doplnky.append(radek)
-
-        elif produkt.category == "ostatni":
-            qty = get_qty(produkt.id, None)
-            if qty > 0:
-                radek["sizes"][None] = qty
-            tabulka_ostatni.append(radek)
-
-    # --- 5) Poznámky (bez úprav) ---
+    # --- 6) Načtení poznámek (zůstává stejná logika) ---
     stocks = {}
-    for produkt in produkty:
+    for p in produkty:
+        # nejprve size=None poznámky
         note = Stock.query.filter_by(
-            product_id=produkt.id, size=None, sklad=selected_sklad
+            product_id=p.id, size=None, sklad=selected_sklad
         ).first()
         if note:
-            stocks[(produkt.id, None, selected_sklad)] = note
-        sizes = (velikosti_saty if produkt.category=="saty"
-                 else velikosti_boty if produkt.category=="boty"
+            stocks[(p.id, None, selected_sklad)] = note
+        # pak všechny velikosti
+        sizes = (velikosti_saty if p.category == "saty"
+                 else velikosti_boty if p.category == "boty"
                  else [None])
-        for size in sizes:
+        for v in sizes:
             st = Stock.query.filter_by(
-                product_id=produkt.id, size=size, sklad=selected_sklad
+                product_id=p.id, size=v, sklad=selected_sklad
             ).first()
             if st:
-                stocks[(produkt.id, size, selected_sklad)] = st
+                stocks[(p.id, v, selected_sklad)] = st
 
-    # --- 6) Render ---
+    # --- 7) Render šablony ---
     return render_template(
         "dashboard.html",
         sklady=sklady,
