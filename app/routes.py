@@ -14,7 +14,6 @@ from weasyprint import HTML
 from io import BytesIO
 from sqlalchemy import func
 
-
 @app.route("/", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
@@ -1349,7 +1348,7 @@ from io import BytesIO
 from weasyprint import HTML
 
 from app import db
-from models import Product, Stock, Transfer, TransferItem
+from app.models import Product, Stock, Transfer, TransferItem
 
 @app.route("/export/transfer/<int:transfer_id>")
 @login_required
@@ -1432,9 +1431,9 @@ def export_inventory(sklad):
             ).first()
             qty = st.quantity if st else 0
             products_by_category[p.category].append({
-                "name":          p.name,
-                "color":         p.color,
-                "quantity":      qty
+                "name":     p.name,
+                "color":    p.color,
+                "quantity": qty
             })
         else:
             qtys = {}
@@ -1446,9 +1445,9 @@ def export_inventory(sklad):
                 ).first()
                 qtys[v] = st.quantity if st else 0
             products_by_category[p.category].append({
-                "name":          p.name,
-                "color":         p.color,
-                "sizes":         qtys
+                "name":  p.name,
+                "color": p.color,
+                "sizes": qtys
             })
 
     html = render_template(

@@ -62,9 +62,7 @@
         <td>{{ p.name }}</td>
         <td>{{ p.color or '–' }}</td>
         {% set cnt = p.quantity %}
-        <td class="{% if cnt == 0 %}bg-zero{% elif cnt == 1 %}bg-one{% else %}bg-two{% endif %}">
-          {{ cnt }}
-        </td>
+        <td class="{% if cnt == 0 %}bg-zero{% elif cnt == 1 %}bg-one{% else %}bg-two{% endif %}">{{ cnt }}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -112,9 +110,7 @@
       <tr>
         <td>{{ p.name }}</td>
         {% set cnt = p.quantity %}
-        <td class="{% if cnt == 0 %}bg-zero{% elif cnt == 1 %}bg-one{% else %}bg-two{% endif %}">
-          {{ cnt }}
-        </td>
+        <td class="{% if cnt == 0 %}bg-zero{% elif cnt == 1 %}bg-one{% else %}bg-two{% endif %}">{{ cnt }}</td>
       </tr>
       {% endfor %}
     </tbody>
