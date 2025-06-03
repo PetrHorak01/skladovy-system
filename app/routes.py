@@ -481,9 +481,19 @@ def vyskladnit():
             flash("Zadejte platné nenegativní množství.", "danger")
             return redirect(url_for("vyskladnit", kategorie=vybrana_kategorie))
 
-        stock = Stock.query.filter_by(
-            product_id=prod.id, sklad=selected_sklad, size=size
-        ).first()
+        # Pro doplňky a ostatní ignorujeme velikost, u šatů/bot ji používáme
+        if vybrana_kategorie in ["doplnky", "ostatni"]:
+            stock = Stock.query.filter_by(
+                product_id=prod.id,
+                sklad=selected_sklad
+            ).first()
+        else:
+            stock = Stock.query.filter_by(
+                product_id=prod.id,
+                sklad=selected_sklad,
+                size=size
+            ).first()
+
         if not stock or stock.quantity < qty:
             flash(f"Nedostatek zásoby: {prod.variant_label}, vel. {size or '-'}", "danger")
             return redirect(url_for("vyskladnit", kategorie=vybrana_kategorie))
@@ -1345,7 +1355,6 @@ def export_transfer(transfer_id):
         return redirect(url_for("preskladneni_detail", transfer_id=transfer_id))
 
     polozky = TransferItem.query.filter_by(transfer_id=transfer_id).all()
-    # složím štítky tak, jak je v detailu
     produkty = {p.id: p for p in Product.query.all()}
     podrobnosti = []
     for pol in polozky:
@@ -1357,7 +1366,6 @@ def export_transfer(transfer_id):
             "quantity": pol.quantity,
         })
 
-    # vykreslíme čistou HTML-šablonu určenou pro PDF
     html = render_template(
         "export_transfer.html",
         transfer=transfer,
@@ -1370,7 +1378,6 @@ def export_transfer(transfer_id):
     resp.headers["Content-Disposition"] = \
       f"attachment; filename=preskladneni_{transfer.id}.pdf"
     return resp
-
 
 @app.route("/export/inventory", defaults={"sklad": None})
 @app.route("/export/inventory/<sklad>")
@@ -1408,21 +1415,35 @@ def export_inventory(sklad):
     }
 
     for p in produkty:
-        # načteme množství pro každou "velikost"
-        qtys = {}
-        for v in velikosti[p.category]:
+        if p.category in ["doplnky", "ostatni"]:
+            # U doplňků a ostatních stačí jeden sloupec quantity
             st = Stock.query.filter_by(
-                product_id=p.id, sklad=sklad, size=v
+                product_id=p.id,
+                sklad=sklad
             ).first()
-            qtys[v] = st.quantity if st else 0
-        products_by_category[p.category].append({
-            "name":          p.name,
-            "color":         p.color,
-            "back_solution": p.back_solution,
-            "sizes":         qtys
-        })
+            qty = st.quantity if st else 0
+            products_by_category[p.category].append({
+                "name":          p.name,
+                "color":         p.color,
+                "back_solution": p.back_solution,
+                "quantity":      qty
+            })
+        else:
+            qtys = {}
+            for v in velikosti[p.category]:
+                st = Stock.query.filter_by(
+                    product_id=p.id,
+                    sklad=sklad,
+                    size=v
+                ).first()
+                qtys[v] = st.quantity if st else 0
+            products_by_category[p.category].append({
+                "name":          p.name,
+                "color":         p.color,
+                "back_solution": p.back_solution,
+                "sizes":         qtys
+            })
 
-    # připravíme HTML a PDF
     html = render_template(
         "export_inventory.html",
         sklad=sklad,
@@ -1439,26 +1460,6 @@ def export_inventory(sklad):
         mimetype="application/pdf",
         as_attachment=True
     )
-
-def _parse_qty_form(form):
-    """
-    Z request.form vezme všechny klíče začínající na 'qty_'
-    a vrátí dict ve tvaru {pid_str: {size_str: qty_int}} pouze s vyplněnými poli.
-    """
-    inv = {}
-    for key, val in form.items():
-        if not key.startswith("qty_"):
-            continue
-        # klíč má formát 'qty_<pid>_<size>'
-        _, pid, size = key.split("_", 2)
-        if val.strip() == "":
-            continue
-        try:
-            qty = int(val)
-        except ValueError:
-            continue
-        inv.setdefault(pid, {})[size] = qty
-    return inv
 
 @app.route("/inventura", methods=["GET", "POST"])
 @login_required
