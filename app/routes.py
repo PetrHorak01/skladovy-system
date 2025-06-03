@@ -437,7 +437,7 @@ def vyskladnit():
         form.sklad.choices = [(s, s) for s in sklady]
     else:
         form.sklad.choices = [(current_user.sklad, current_user.sklad)]
-        form.sklad.data    = current_user.sklad
+        form.sklad.data = current_user.sklad
 
     produkty = (
         Product.query
@@ -453,7 +453,7 @@ def vyskladnit():
         form.size.choices = [(str(v), str(v)) for v in range(32, 56, 2)]
     elif vybrana_kategorie == "boty":
         form.size.choices = [(str(v), str(v)) for v in range(36, 43)]
-    else:  # doplnky i ostatni
+    else:
         form.size.choices = [("", "-")]
 
     if request.method == "POST":
@@ -463,14 +463,14 @@ def vyskladnit():
             return redirect(url_for("vyskladnit", kategorie=vybrana_kategorie))
 
         try:
-            pid  = int(form.product_id.data)
+            pid = int(form.product_id.data)
             prod = produkty_dict[pid]
         except:
             flash("Neplatný produkt.", "danger")
             return redirect(url_for("vyskladnit", kategorie=vybrana_kategorie))
 
         raw_sz = form.size.data
-        size   = int(raw_sz) if raw_sz != "" else None
+        size = int(raw_sz) if raw_sz != "" else None
 
         try:
             qty = int(form.quantity.data)
@@ -480,7 +480,6 @@ def vyskladnit():
             flash("Zadejte platné nenegativní množství.", "danger")
             return redirect(url_for("vyskladnit", kategorie=vybrana_kategorie))
 
-        # Pro doplňky a ostatní ignorujeme velikost, u šatů/bot ji používáme
         if vybrana_kategorie in ["doplnky", "ostatni"]:
             stock = Stock.query.filter_by(
                 product_id=prod.id,
