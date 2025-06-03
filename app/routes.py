@@ -1341,6 +1341,16 @@ def preskladneni_archiv():
 
 
 
+# routes.py (pouze část s funkcemi pro export)
+
+from flask import render_template, request, redirect, url_for, flash, send_file
+from flask_login import login_required, current_user
+from io import BytesIO
+from weasyprint import HTML
+
+from app import db
+from models import Product, Stock, Transfer, TransferItem
+
 @app.route("/export/transfer/<int:transfer_id>")
 @login_required
 def export_transfer(transfer_id):
@@ -1405,8 +1415,8 @@ def export_inventory(sklad):
     velikosti = {
         "saty":     list(range(32, 56, 2)),
         "boty":     list(range(36, 43)),
-        "doplnky":  [None],
-        "ostatni":  [None],
+        "doplnky":  [],       # pro doplňky se nebude iterovat přes velikosti
+        "ostatni":  [],       # pro ostatní stejně
     }
 
     produkty = Product.query.order_by(Product.name).all()
@@ -1416,7 +1426,6 @@ def export_inventory(sklad):
 
     for p in produkty:
         if p.category in ["doplnky", "ostatni"]:
-            # U doplňků a ostatních stačí jeden sloupec quantity
             st = Stock.query.filter_by(
                 product_id=p.id,
                 sklad=sklad
@@ -1425,7 +1434,6 @@ def export_inventory(sklad):
             products_by_category[p.category].append({
                 "name":          p.name,
                 "color":         p.color,
-                "back_solution": p.back_solution,
                 "quantity":      qty
             })
         else:
@@ -1440,7 +1448,6 @@ def export_inventory(sklad):
             products_by_category[p.category].append({
                 "name":          p.name,
                 "color":         p.color,
-                "back_solution": p.back_solution,
                 "sizes":         qtys
             })
 
@@ -1460,6 +1467,7 @@ def export_inventory(sklad):
         mimetype="application/pdf",
         as_attachment=True
     )
+
 
 @app.route("/inventura", methods=["GET", "POST"])
 @login_required

@@ -37,7 +37,7 @@
         <td>{{ p.back_solution or '–' }}</td>
         {% for v in velikosti['saty'] %}
           {% set cnt = p.sizes[v] %}
-          <td class="{% if cnt==0 %}bg-zero{% elif cnt==1 %}bg-one{% else %}bg-two{% endif %}">
+          <td class="{% if cnt == 0 %}bg-zero{% elif cnt == 1 %}bg-one{% else %}bg-two{% endif %}">
             {{ cnt }}
           </td>
         {% endfor %}
@@ -61,8 +61,8 @@
       <tr>
         <td>{{ p.name }}</td>
         <td>{{ p.color or '–' }}</td>
-        {% set cnt = p.sizes[None] %}
-        <td class="{% if cnt==0 %}bg-zero{% elif cnt==1 %}bg-one{% else %}bg-two{% endif %}">
+        {% set cnt = p.quantity %}
+        <td class="{% if cnt == 0 %}bg-zero{% elif cnt == 1 %}bg-one{% else %}bg-two{% endif %}">
           {{ cnt }}
         </td>
       </tr>
@@ -76,6 +76,8 @@
     <thead>
       <tr>
         <th>Název</th>
+        <th>Barva</th>
+        <th>Řešení zad</th>
         {% for v in velikosti['boty'] %}<th>{{ v }}</th>{% endfor %}
       </tr>
     </thead>
@@ -83,9 +85,11 @@
       {% for p in products_by_category['boty'] %}
       <tr>
         <td>{{ p.name }}</td>
+        <td>{{ p.color or '–' }}</td>
+        <td>{{ p.back_solution or '–' }}</td>
         {% for v in velikosti['boty'] %}
           {% set cnt = p.sizes[v] %}
-          <td class="{% if cnt==0 %}bg-zero{% elif cnt==1 %}bg-one{% else %}bg-two{% endif %}">
+          <td class="{% if cnt == 0 %}bg-zero{% elif cnt == 1 %}bg-one{% else %}bg-two{% endif %}">
             {{ cnt }}
           </td>
         {% endfor %}
@@ -107,8 +111,8 @@
       {% for p in products_by_category['ostatni'] %}
       <tr>
         <td>{{ p.name }}</td>
-        {% set cnt = p.sizes[None] %}
-        <td class="{% if cnt==0 %}bg-zero{% elif cnt==1 %}bg-one{% else %}bg-two{% endif %}">
+        {% set cnt = p.quantity %}
+        <td class="{% if cnt == 0 %}bg-zero{% elif cnt == 1 %}bg-one{% else %}bg-two{% endif %}">
           {{ cnt }}
         </td>
       </tr>
