@@ -1160,8 +1160,13 @@ def preskladnit():
         sklady=sklady,
         source_sklad=source_sklad,
         target_sklad=session["target_sklad"],
-        produkty_podle_kategoriímokat=kategorímódnutím**—_**pokdar**ú—roupá
-        produkty_podle_kategoriažnozę==nostnost—}}">
+        produkty_podle_kategorii=produkty_podle_kategorii,
+        kosik_saty=kosik_saty,
+        kosik_boty=kosik_boty,
+        kosik_doplnky=kosik_doplnky,
+        kosik_ostatni=kosik_ostatni,
+        velikosti=velikosti
+    )
 
 
 @app.route("/export/transfer/<int:transfer_id>")
