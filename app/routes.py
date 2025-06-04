@@ -1105,6 +1105,7 @@ def preskladnit():
 
     produkty = Product.query.order_by(Product.name).all()
     produkty_podle_kategorii = {k: [] for k in velikosti.keys()}
+
     for p in produkty:
         qtys = {}
         for v in velikosti[p.category]:
@@ -1162,7 +1163,6 @@ def preskladnit():
         produkty_podle_kategoriímokat=kategorímódnutím**—_**pokdar**ú—roupá
         produkty_podle_kategoriažnozę==nostnost—}}">
 
----
 
 @app.route("/export/transfer/<int:transfer_id>")
 @login_required
