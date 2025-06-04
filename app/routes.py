@@ -21,6 +21,25 @@ from weasyprint import HTML
 from io import BytesIO
 from sqlalchemy import func
 
+def _parse_qty_form(form):
+    """
+    Z request.form vezme všechny klíče začínající na 'qty_'
+    a vrátí dict ve tvaru {pid_str: {size_str: qty_int}} pouze s vyplněnými poli.
+    """
+    inv = {}
+    for key, val in form.items():
+        if not key.startswith("qty_"):
+            continue
+        # klíč má formát 'qty_<pid>_<size>'
+        _, pid, size = key.split("_", 2)
+        if val.strip() == "":
+            continue
+        try:
+            qty = int(val)
+        except ValueError:
+            continue
+        inv.setdefault(pid, {})[size] = qty
+    return inv
 
 @app.route("/", methods=["GET", "POST"])
 def login():
