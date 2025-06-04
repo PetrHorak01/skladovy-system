@@ -1,18 +1,26 @@
 from flask_wtf import FlaskForm
 from wtforms import SelectField, IntegerField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
-from flask import render_template, redirect, url_for, flash, request, session, current_app, make_response, render_template, send_file
+from flask import (
+    render_template, redirect, url_for, flash, request, session,
+    current_app, make_response, send_file
+)
 from flask_login import login_user, logout_user, current_user, login_required
 from app import app, db
-from app.models import User, Product, Stock, History, Transfer, TransferItem
-from app.forms import LoginForm, AddProductForm, StockForm, NaskladnitForm, VyskladnitForm, UserForm
+from app.models import (
+    User, Product, Stock, History, Transfer, TransferItem,
+    Sales, Overtime
+)
+from app.forms import (
+    LoginForm, AddProductForm, StockForm,
+    NaskladnitForm, VyskladnitForm, UserForm, InventuraForm
+)
 from datetime import datetime
 from collections import defaultdict
-from app.models import Sales
-from app.models import Overtime
 from weasyprint import HTML
 from io import BytesIO
 from sqlalchemy import func
+
 
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -22,13 +30,12 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
         if user and user.check_password(form.password.data):
-            # teď už form.remember_me existuje
             login_user(user, remember=form.remember_me.data)
             next_page = request.args.get("next")
             return redirect(next_page or url_for("dashboard"))
         flash("Neplatné přihlašovací údaje", "danger")
     return render_template("login.html", form=form)
-    
+
 
 @app.route("/dashboard", methods=["GET"])
 @login_required
@@ -65,7 +72,6 @@ def dashboard():
         .having(func.sum(Stock.quantity) > 0)
         .all()
     )
-    # Převod na slovník: qty_map[product_id][size] = qty
     qty_map = defaultdict(dict)
     for pid, size, qty in stock_rows:
         qty_map[pid][size] = qty
@@ -96,13 +102,11 @@ def dashboard():
     # --- 6) Načtení poznámek (zůstává stejná logika) ---
     stocks = {}
     for p in produkty:
-        # nejprve size=None poznámky
         note = Stock.query.filter_by(
             product_id=p.id, size=None, sklad=selected_sklad
         ).first()
         if note:
             stocks[(p.id, None, selected_sklad)] = note
-        # pak všechny velikosti
         sizes = (velikosti_saty if p.category == "saty"
                  else velikosti_boty if p.category == "boty"
                  else [None])
@@ -130,11 +134,11 @@ def dashboard():
     )
 
 
-
 @app.route("/logout")
 def logout():
     logout_user()
     return redirect(url_for("login"))
+
 
 @app.route("/produkty", methods=["GET", "POST"])
 @login_required
@@ -143,7 +147,6 @@ def produkty():
         flash("Přístup odepřen.")
         return redirect(url_for("dashboard"))
 
-    # povolené kategorie
     kategorie = ["saty", "boty", "doplnky", "ostatni"]
     vybrana_kategorie = request.args.get("kategorie", "saty")
     if vybrana_kategorie not in kategorie:
@@ -161,22 +164,29 @@ def produkty():
         db.session.add(produkt)
         db.session.flush()
 
-        # určíme velikosti podle kategorie
         if vybrana_kategorie == "saty":
             velikosti = list(range(32, 56, 2))
         elif vybrana_kategorie == "boty":
             velikosti = list(range(36, 43))
         elif vybrana_kategorie == "doplnky":
             velikosti = [None]
-        else:  # ostatni
+        else:
             velikosti = []
 
-        # pro každý sklad a každou velikost založíme zásobu
         for sklad in ["Praha", "Brno", "Pardubice", "Ostrava"]:
             for size in velikosti:
-                db.session.add(Stock(product_id=produkt.id, sklad=sklad, size=size, quantity=0))
-            # záznam pro poznámku
-            db.session.add(Stock(product_id=produkt.id, sklad=sklad, size=None, quantity=0))
+                db.session.add(Stock(
+                    product_id=produkt.id,
+                    sklad=sklad,
+                    size=size,
+                    quantity=0
+                ))
+            db.session.add(Stock(
+                product_id=produkt.id,
+                sklad=sklad,
+                size=None,
+                quantity=0
+            ))
 
         db.session.commit()
         flash("Produkt byl přidán.")
@@ -184,14 +194,14 @@ def produkty():
 
     produkty = Product.query.filter_by(category=vybrana_kategorie).order_by(Product.name).all()
     uprava = request.view_args.get("uprava", None)
-    return render_template("produkty.html",
-                           form=form,
-                           produkty=produkty,
-                           vybrana_kategorie=vybrana_kategorie,
-                           uprava=uprava)
+    return render_template(
+        "produkty.html",
+        form=form,
+        produkty=produkty,
+        vybrana_kategorie=vybrana_kategorie,
+        uprava=uprava
+    )
 
-
-# app/routes.py
 
 @app.route("/produkty/edit/<int:product_id>", methods=["GET", "POST"])
 @login_required
@@ -213,18 +223,18 @@ def edit_product(product_id):
         flash("Produkt upraven.")
         return redirect(url_for("produkty", kategorie=produkt.category))
 
-    # předvyplnění
     form.name.data = produkt.name
     form.color.data = produkt.color
     form.back_solution.data = produkt.back_solution
 
     produkty = Product.query.filter_by(category=produkt.category).order_by(Product.name).all()
-    return render_template("produkty.html",
-                           form=form,
-                           produkty=produkty,
-                           vybrana_kategorie=produkt.category,
-                           uprava=produkt.id)
-
+    return render_template(
+        "produkty.html",
+        form=form,
+        produkty=produkty,
+        vybrana_kategorie=produkt.category,
+        uprava=produkt.id
+    )
 
 
 @app.route("/produkty/delete/<int:product_id>", methods=["POST"])
@@ -237,12 +247,12 @@ def delete_product(product_id):
     produkt = Product.query.get_or_404(product_id)
     kategorie = produkt.category
 
-    zásoby = Stock.query.filter_by(product_id=product_id).all()
-    if any(z.quantity > 0 for z in zásoby):
+    zasoby = Stock.query.filter_by(product_id=product_id).all()
+    if any(z.quantity > 0 for z in zasoby):
         flash("Produkt nelze smazat – na skladech není nulové množství.")
         return redirect(url_for("produkty", kategorie=kategorie))
 
-    for z in zásoby:
+    for z in zasoby:
         db.session.delete(z)
     db.session.delete(produkt)
     db.session.commit()
@@ -250,17 +260,14 @@ def delete_product(product_id):
     return redirect(url_for("produkty", kategorie=kategorie))
 
 
-
-
 @app.route("/historie", methods=["GET", "POST"])
 @login_required
 def historie():
-    # zpracování filtrů
     query = History.query
-    user_filter  = request.args.get("user")
+    user_filter = request.args.get("user")
     sklad_filter = request.args.get("sklad")
-    od_str       = request.args.get("od")
-    do_str       = request.args.get("do")
+    od_str = request.args.get("od")
+    do_str = request.args.get("do")
 
     if user_filter and user_filter != "Všichni":
         query = query.filter_by(user=user_filter)
@@ -273,17 +280,14 @@ def historie():
         do_date = datetime.strptime(do_str, "%d.%m.%Y")
         query = query.filter(History.timestamp <= do_date)
 
-    # načtení záznamů
     zaznamy_raw = query.order_by(History.timestamp.desc()).all()
-
-    # naparsování do dictů i s variant_label
     produkty_cache = {p.id: p for p in Product.query.all()}
     zaznamy = []
     for h in zaznamy_raw:
         prod = produkty_cache.get(h.product_id)
         label = prod.variant_label if prod else "-"
         zaznamy.append({
-            "timestamp": h.timestamp.strftime("%d.%m.%Y %H:%M"),
+            "timestamp": h.timestamp.strftime("%d.%m.%Y %H:%M"),
             "user":      h.user,
             "sklad":     h.sklad,
             "produkt":   label,
@@ -293,8 +297,7 @@ def historie():
             "note":      h.note or "-",
         })
 
-    # naplnění dropdownů
-    users  = ["Všichni"] + sorted({h.user for h in History.query.distinct(History.user)})
+    users = ["Všichni"] + sorted({h.user for h in History.query.distinct(History.user)})
     sklady = ["Všechny"] + sorted({h.sklad for h in History.query.distinct(History.sklad)})
 
     return render_template(
@@ -309,12 +312,10 @@ def historie():
     )
 
 
-
 @app.route("/naskladnit", methods=["GET", "POST"])
 @login_required
 def naskladnit():
     sklady = ["Praha", "Pardubice", "Brno", "Ostrava"]
-    # povolené kategorie
     allowed = ["saty", "doplnky", "boty", "ostatni"]
     vybrana_kategorie = request.values.get("kategorie", "saty")
     if vybrana_kategorie not in allowed:
@@ -322,56 +323,45 @@ def naskladnit():
 
     form = NaskladnitForm()
 
-    # admin vidí všechny sklady, ostatní jen svůj
     if current_user.role == "admin":
         form.sklad.choices = [(s, s) for s in sklady]
     else:
         form.sklad.choices = [(current_user.sklad, current_user.sklad)]
-        form.sklad.data    = current_user.sklad
+        form.sklad.data = current_user.sklad
 
-    # načteme produkty dané kategorie
-    produkty = (Product.query
-                      .filter_by(category=vybrana_kategorie)
-                      .order_by(Product.name)
-                      .all())
+    produkty = (
+        Product.query
+               .filter_by(category=vybrana_kategorie)
+               .order_by(Product.name)
+               .all()
+    )
     produkty_dict = {p.id: p for p in produkty}
-    form.product_id.choices = [
-        (p.id, p.variant_label) for p in produkty
-    ]
+    form.product_id.choices = [(p.id, p.variant_label) for p in produkty]
 
-    # velikosti: saty, boty, doplňky i ostatní (jedna prázdná)
     form.size.coerce = str
     if vybrana_kategorie == "saty":
-        form.size.choices = [
-            (str(v), str(v)) for v in range(32, 56, 2)
-        ]
+        form.size.choices = [(str(v), str(v)) for v in range(32, 56, 2)]
     elif vybrana_kategorie == "boty":
-        form.size.choices = [
-            (str(v), str(v)) for v in range(36, 43)
-        ]
-    else:  # doplnky i ostatni
+        form.size.choices = [(str(v), str(v)) for v in range(36, 43)]
+    else:
         form.size.choices = [("", "-")]
 
     if request.method == "POST":
-        # běžný skladník nesmí měnit cizí sklad
         selected_sklad = form.sklad.data
         if current_user.role != "admin" and selected_sklad != current_user.sklad:
             flash(f"Nemáte oprávnění pracovat se skladem {selected_sklad}.", "danger")
             return redirect(url_for("naskladnit", kategorie=vybrana_kategorie))
 
-        # validace produktu
         try:
-            pid  = int(form.product_id.data)
+            pid = int(form.product_id.data)
             prod = produkty_dict[pid]
         except:
             flash("Neplatný produkt.", "danger")
             return redirect(url_for("naskladnit", kategorie=vybrana_kategorie))
 
-        # velikost
         raw_sz = form.size.data
         size = int(raw_sz) if raw_sz != "" else None
 
-        # množství
         try:
             qty = int(form.quantity.data)
             if qty < 0:
@@ -380,12 +370,19 @@ def naskladnit():
             flash("Zadejte platné nenegativní množství.", "danger")
             return redirect(url_for("naskladnit", kategorie=vybrana_kategorie))
 
-        # úprava zásob
-        stock = Stock.query.filter_by(
-            product_id=prod.id,
-            sklad=selected_sklad,
-            size=size
-        ).first()
+        # Větvení podle kategorie
+        if vybrana_kategorie in ["doplnky", "ostatni"]:
+            stock = Stock.query.filter_by(
+                product_id=prod.id,
+                sklad=selected_sklad
+            ).first()
+        else:
+            stock = Stock.query.filter_by(
+                product_id=prod.id,
+                sklad=selected_sklad,
+                size=size
+            ).first()
+
         if stock:
             stock.quantity += qty
         else:
@@ -397,7 +394,6 @@ def naskladnit():
             )
             db.session.add(stock)
 
-        # historie
         db.session.add(History(
             user=current_user.username,
             sklad=selected_sklad,
@@ -420,7 +416,6 @@ def naskladnit():
     )
 
 
-
 @app.route("/vyskladnit", methods=["GET", "POST"])
 @login_required
 def vyskladnit():
@@ -432,7 +427,6 @@ def vyskladnit():
 
     form = VyskladnitForm()
 
-    # admin vidí všechny sklady, ostatní jen svůj
     if current_user.role == "admin":
         form.sklad.choices = [(s, s) for s in sklady]
     else:
@@ -480,6 +474,7 @@ def vyskladnit():
             flash("Zadejte platné nenegativní množství.", "danger")
             return redirect(url_for("vyskladnit", kategorie=vybrana_kategorie))
 
+        # Větvení podle kategorie
         if vybrana_kategorie in ["doplnky", "ostatni"]:
             stock = Stock.query.filter_by(
                 product_id=prod.id,
@@ -518,11 +513,10 @@ def vyskladnit():
         produkty_dict=produkty_dict
     )
 
-    
+
 @app.route("/uzivatele", methods=["GET", "POST"])
 @login_required
 def uzivatele():
-    # pouze admin
     if current_user.role != "admin":
         flash("Přístup odepřen.", "danger")
         return redirect(url_for("dashboard"))
@@ -531,12 +525,10 @@ def uzivatele():
     users = User.query.order_by(User.username).all()
 
     if form.validate_on_submit():
-        # uživatel s tímto jménem již existuje?
         if User.query.filter_by(username=form.username.data).first():
             flash("Uživatel s tímto jménem již existuje.", "warning")
             return redirect(url_for("uzivatele"))
 
-        # vytvoření a uložení s hashem hesla
         new_user = User(
             username=form.username.data,
             role=form.role.data,
@@ -555,6 +547,7 @@ def uzivatele():
         users=users,
         editing=None
     )
+
 
 @app.route("/uzivatele/edit/<int:user_id>", methods=["GET", "POST"])
 @login_required
@@ -575,7 +568,13 @@ def edit_user(user_id):
         flash("Uživatel upraven.")
         return redirect(url_for("uzivatele"))
 
-    return render_template("uzivatele.html", form=form, users=User.query.all(), editing=user.id)
+    return render_template(
+        "uzivatele.html",
+        form=form,
+        users=User.query.all(),
+        editing=user.id
+    )
+
 
 @app.route("/uzivatele/delete/<int:user_id>", methods=["POST"])
 @login_required
@@ -595,21 +594,19 @@ def delete_user(user_id):
     flash("Uživatel byl smazán.")
     return redirect(url_for("uzivatele"))
 
+
 @app.route("/poznamka/<int:product_id>/<sklad>", methods=["POST"])
 @login_required
 def poznamka(product_id, sklad):
-    # 1) Načteme text poznámky, raw size a active tab
     note_text = request.form.get("note", "").strip()
-    raw_sz    = request.form.get("size", "")
-    tab       = request.form.get("tab", "saty")
+    raw_sz = request.form.get("size", "")
+    tab = request.form.get("tab", "saty")
 
-    # 2) Převedeme velikost
     try:
         size = int(raw_sz)
     except (ValueError, TypeError):
         size = None
 
-    # 3) Najdeme záznam ve Stock
     stock = Stock.query.filter_by(
         product_id=product_id,
         sklad=sklad,
@@ -620,11 +617,9 @@ def poznamka(product_id, sklad):
         flash("Nelze uložit poznámku – záznam skladu neexistuje.", "warning")
         return redirect(url_for("dashboard", sklad=sklad) + f"#{tab}")
 
-    # 4) Uložíme poznámku
     stock.note = note_text
     db.session.commit()
 
-    # 5) Zapíšeme historii
     history = History(
         user=current_user.username,
         sklad=sklad,
@@ -638,11 +633,10 @@ def poznamka(product_id, sklad):
     db.session.commit()
 
     flash("Poznámka byla uložena.", "success")
-
-    # 6) Redirect zpět na dashboard se stejným skladem a hashem
     return redirect(
         url_for("dashboard", sklad=sklad, tab=tab) + f"#{tab}"
     )
+
 
 @app.route("/prodeje")
 @login_required
@@ -660,15 +654,11 @@ def prodeje():
     nazvy_mesicu = {str(m[0]): m[1] for m in mesice}
     vybrany_nazev = nazvy_mesicu.get(str(mesic), "")
 
-    # všichni non-admin uživatelé
-    uzivatele = User.query.filter(User.role != "admin") \
-                          .order_by(User.username).all()
+    uzivatele = User.query.filter(User.role != "admin").order_by(User.username).all()
     jmena_uzivatelu = [u.username for u in uzivatele]
 
-    # inicializace datastruktury
     data = defaultdict(lambda: {"zkousky": 0, "prodeje": 0})
 
-    # naplnění podle výběru měsíce vs. roční přehled
     if mesic == "rocni_prehled":
         zaznamy = Sales.query.filter_by(year=rok).all()
         for z in zaznamy:
@@ -681,13 +671,11 @@ def prodeje():
             data[z.user]["zkousky"] = z.tries
             data[z.user]["prodeje"] = z.sales
 
-    # spočítáme % úspěšnost pro každou z dívek
     for jmeno in jmena_uzivatelu:
         zk = data[jmeno]["zkousky"]
         pr = data[jmeno]["prodeje"]
         data[jmeno]["uspesnost"] = f"{(pr / zk * 100):.1f} %" if zk > 0 else "-"
 
-    # --- nový řádek CELKEM ---
     celkem_zkousky = sum(data[j]["zkousky"] for j in jmena_uzivatelu)
     celkem_prodeje = sum(data[j]["prodeje"] for j in jmena_uzivatelu)
     celkem_uspesnost = (
@@ -701,7 +689,6 @@ def prodeje():
         "uspesnost":  celkem_uspesnost
     }
     jmena_uzivatelu.append("Celkem")
-    # --- konec Celkem ---
 
     return render_template(
         "prodeje.html",
@@ -711,7 +698,6 @@ def prodeje():
         data=data,
         uzivatele=jmena_uzivatelu
     )
-
 
 
 @app.route("/prodeje/zapsat", methods=["GET", "POST"])
@@ -737,7 +723,6 @@ def zapsat_prodej():
         rok = dnes.year
         mesic = dnes.month
 
-        # Pokud admin, může vybrat měsíc i uživatele
         if current_user.role == "admin":
             if "uzivatel" in request.form:
                 username = request.form["uzivatel"]
@@ -747,7 +732,6 @@ def zapsat_prodej():
                 except (ValueError, TypeError):
                     pass
 
-        # Najdi nebo vytvoř záznam v Sales
         zaznam = Sales.query.filter_by(user=username, year=rok, month=mesic).first()
         if not zaznam:
             zaznam = Sales(user=username, year=rok, month=mesic, tries=0, sales=0)
@@ -794,12 +778,12 @@ def zapsat_prodej():
         mesice=mesice
     )
 
+
 @app.route("/prodeje/rocni")
 @login_required
 def prodeje_rocni():
     rok = datetime.now().year
 
-    # 1) Načteme všechny uživatelky (non-admin)
     uzivatele = (
         User.query
             .filter(User.role != "admin")
@@ -808,16 +792,12 @@ def prodeje_rocni():
     )
     jmena_uzivatelu = [u.username for u in uzivatele]
 
-    # 2) Sestavíme slovník data[user] = {zkousky:…, prodeje:…}
     data = defaultdict(lambda: {"zkousky": 0, "prodeje": 0})
-
-    # 3) Sečteme všechny záznamy za daný rok
     zaznamy = Sales.query.filter_by(year=rok).all()
     for z in zaznamy:
         data[z.user]["zkousky"] += z.tries
         data[z.user]["prodeje"] += z.sales
 
-    # 4) Vypočteme % úspěšnost pro každou z nich
     for jmeno in jmena_uzivatelu:
         zk = data[jmeno]["zkousky"]
         pr = data[jmeno]["prodeje"]
@@ -825,7 +805,6 @@ def prodeje_rocni():
             f"{(pr / zk * 100):.1f} %" if zk > 0 else "-"
         )
 
-    # 5) Přidáme řádek CELKEM
     celkem_zkousky = sum(data[j]["zkousky"] for j in jmena_uzivatelu)
     celkem_prodeje = sum(data[j]["prodeje"] for j in jmena_uzivatelu)
     celkem_uspesnost = (
@@ -839,8 +818,6 @@ def prodeje_rocni():
     }
     jmena_uzivatelu.append("Celkem")
 
-    # 6) Renderujeme šablonu – ta by měla projít přes `uzivatele` a pro každý
-    #    zobrazit data[user]['zkousky'], ['prodeje'], ['uspesnost']
     return render_template(
         "prodeje_rocni.html",
         rok=rok,
@@ -856,7 +833,6 @@ def prescasy():
     rok = aktualni_datum.year
     mesic = request.args.get("mesic", aktualni_datum.month, type=int)
 
-    # Přeložené názvy měsíců
     mesice = [
         (1, "Leden"), (2, "Únor"), (3, "Březen"), (4, "Duben"),
         (5, "Květen"), (6, "Červen"), (7, "Červenec"), (8, "Srpen"),
@@ -865,30 +841,23 @@ def prescasy():
     nazvy_mesicu = {m[0]: m[1] for m in mesice}
     vybrany_nazev_mesice = nazvy_mesicu.get(mesic, "")
 
-    # Všichni ne-admin uživatelé
     uzivatele = User.query.filter(User.role != "admin")\
                           .order_by(User.username).all()
     jmena_uzivatelu = [u.username for u in uzivatele]
 
-    # Záznamy z databáze
     zaznamy = Overtime.query.filter_by(year=rok, month=mesic).all()
     data = defaultdict(lambda: {"classic": 0, "deluxe": 0})
-
     for z in zaznamy:
         data[z.user]["classic"] = z.classic
         data[z.user]["deluxe"] = z.deluxe
 
-    # --- nový řádek CELKEM ---
     celkem_classic = sum(data[j]["classic"] for j in jmena_uzivatelu)
-    celkem_deluxe  = sum(data[j]["deluxe"]  for j in jmena_uzivatelu)
-
+    celkem_deluxe = sum(data[j]["deluxe"] for j in jmena_uzivatelu)
     data["Celkem"] = {
         "classic": celkem_classic,
         "deluxe":  celkem_deluxe
     }
-    # aby se Celkem vykreslil jako poslední
     jmena_uzivatelu.append("Celkem")
-    # --- konec Celkem ---
 
     return render_template(
         "prescasy.html",
@@ -898,7 +867,6 @@ def prescasy():
         data=data,
         uzivatele=jmena_uzivatelu
     )
-
 
 
 @app.route("/prescasy/zapsat", methods=["GET", "POST"])
@@ -979,12 +947,12 @@ def zapsat_prescasy():
         mesice=mesice
     )
 
+
 @app.route("/prescasy/rocni")
 @login_required
 def prescasy_rocni():
     aktualni_rok = datetime.now().year
 
-    # 1) Načteme všechny non-admin uživatelky
     uzivatele = (
         User.query
             .filter(User.role != "admin")
@@ -993,21 +961,18 @@ def prescasy_rocni():
     )
     jmena_uzivatelu = [u.username for u in uzivatele]
 
-    # 2) Spočteme classic a deluxe za rok pro každou
     data = {}
     for jmeno in jmena_uzivatelu:
         zaznamy = Overtime.query.filter_by(user=jmeno, year=aktualni_rok).all()
         classic = sum(z.classic or 0 for z in zaznamy)
-        deluxe  = sum(z.deluxe  or 0 for z in zaznamy)
+        deluxe = sum(z.deluxe or 0 for z in zaznamy)
         data[jmeno] = {"classic": classic, "deluxe": deluxe}
 
-    # 3) Vypočteme Celkem
     celkem_classic = sum(data[j]["classic"] for j in jmena_uzivatelu)
-    celkem_deluxe  = sum(data[j]["deluxe"]  for j in jmena_uzivatelu)
+    celkem_deluxe = sum(data[j]["deluxe"] for j in jmena_uzivatelu)
     data["Celkem"] = {"classic": celkem_classic, "deluxe": celkem_deluxe}
     jmena_uzivatelu.append("Celkem")
 
-    # 4) Předáme do šablony
     return render_template(
         "prescasy_rocni.html",
         data=data,
@@ -1019,14 +984,13 @@ def prescasy_rocni():
 @app.route("/preskladnit", methods=["GET", "POST"])
 @login_required
 def preskladnit():
-    # 0) Pomocná fce: načte všechna políčka velikostí z formuláře do session["kosik"]
     def ulozit_kosik_z_formulare():
         for it in session["kosik"]:
             pid = it["id"]
             prefix = f"velikost_{pid}_"
             for key, raw in request.form.items():
                 if key.startswith(prefix):
-                    suffix = key[len(prefix):]  # "" u doplňků/ostatni, jinak třeba "36"
+                    suffix = key[len(prefix):]
                     try:
                         q = int(raw)
                     except (ValueError, TypeError):
@@ -1034,7 +998,6 @@ def preskladnit():
                     it["velikosti"][suffix] = max(0, q)
         session.modified = True
 
-    # 1) Práva a výběr zdrojového skladu
     sklady = ["Praha", "Brno", "Pardubice", "Ostrava"]
     default_source = (
         "Pardubice"
@@ -1051,12 +1014,10 @@ def preskladnit():
         flash("Nemáte oprávnění zakládat přeskladnění.", "danger")
         return redirect(url_for("dashboard"))
 
-    # 2) Inicializace košíku a cílového skladu
     session.setdefault("kosik", [])
     session.setdefault("target_sklad", sklady[0])
     session.modified = True
 
-    # 3) Definice velikostí podle kategorií (včetně 'ostatni')
     velikosti = {
         "saty":    list(range(32, 56, 2)),
         "boty":    list(range(36, 43)),
@@ -1064,11 +1025,9 @@ def preskladnit():
         "ostatni": [None],
     }
 
-    # 4) Zpracování POST
     if request.method == "POST":
         ulozit_kosik_z_formulare()
 
-        # 4a) přidání produktu
         if "add_product" in request.form:
             pid = int(request.form["add_product"])
             if not any(it["id"] == pid for it in session["kosik"]):
@@ -1083,14 +1042,12 @@ def preskladnit():
             session.modified = True
             return redirect(url_for("preskladnit"))
 
-        # 4b) odebrání produktu
         if "remove_product" in request.form:
             pid = int(request.form["remove_product"])
             session["kosik"] = [it for it in session["kosik"] if it["id"] != pid]
             session.modified = True
             return redirect(url_for("preskladnit"))
 
-        # 4c) potvrzení přeskladnění
         if "preskladnit" in request.form:
             target = request.form.get("target_sklad", session["target_sklad"])
             session["target_sklad"] = target
@@ -1149,12 +1106,10 @@ def preskladnit():
                 flash(str(e), "danger")
                 return redirect(url_for("preskladnit"))
 
-        # 4d) tisk
         if "tisk" in request.form:
             flash("Tisk zatím není implementován.", "info")
             return redirect(url_for("preskladnit"))
 
-    # 5) GET – příprava dat pro šablonu
     produkty = Product.query.order_by(Product.name).all()
     produkty_podle_kategorii = {k: [] for k in velikosti.keys()}
     for p in produkty:
@@ -1172,7 +1127,6 @@ def preskladnit():
             "velikosti": qtys,
         })
 
-    # 6) Normalizace session["kosik"]
     normalized = []
     for it in session["kosik"]:
         sizes = {}
@@ -1184,7 +1138,6 @@ def preskladnit():
                 continue
         normalized.append({"id": it["id"], "velikosti": sizes})
 
-    # 7) Roztřídění do kategorií pro šablonu
     produkty_dict = {p.id: p for p in produkty}
     kosik_saty = []
     kosik_boty = []
@@ -1218,9 +1171,8 @@ def preskladnit():
         kosik_boty=kosik_boty,
         kosik_doplnky=kosik_doplnky,
         kosik_ostatni=kosik_ostatni,
-        velikosti=velikosti,
+        velikosti=velikosti
     )
-
 
 
 @app.route("/preskladneni/<int:transfer_id>", methods=["GET", "POST"])
@@ -1278,12 +1230,14 @@ def preskladneni_detail(transfer_id):
             flash(str(e), "danger")
             return redirect(url_for("preskladneni_detail", transfer_id=transfer_id, z=zpet))
 
-    # příprava detailu (štítky apod.)
     produkty = {p.id: p for p in Product.query.all()}
     podrobnosti = []
     for pol in polozky:
         prod = produkty.get(pol.product_id)
-        label = f"{prod.name}-{prod.color or '-'}-{prod.back_solution or '-'}" if prod else "-"
+        label = (
+            f"{prod.name}-{prod.color or '-'}-{prod.back_solution or '-'}"
+            if prod else "-"
+        )
         podrobnosti.append({
             "label":    label,
             "size":     pol.size or "-",
@@ -1297,14 +1251,15 @@ def preskladneni_detail(transfer_id):
         zpet=zpet
     )
 
+
 @app.route("/preskladneni_seznam")
 @login_required
 def preskladneni_seznam():
-    # admin a skladník Pardubice → všechny v_tranzitu
     if current_user.role == "admin" or current_user.sklad == "Pardubice":
-        transfers = Transfer.query.filter_by(status="v_tranzitu").order_by(Transfer.created_at.desc()).all()
+        transfers = Transfer.query.filter_by(status="v_tranzitu").order_by(
+            Transfer.created_at.desc()
+        ).all()
     else:
-        # ostatní skladníci vidí jen ty, které míří k nim
         transfers = Transfer.query.filter_by(
             status="v_tranzitu",
             target_sklad=current_user.sklad
@@ -1316,44 +1271,23 @@ def preskladneni_seznam():
     )
 
 
-
 @app.route("/preskladneni_archiv")
 @login_required
 def preskladneni_archiv():
-    # admin NEBO uživatel s přiděleným skladem Pardubice
     if current_user.role == "admin" or current_user.sklad == "Pardubice":
-        archiv = (
-            Transfer.query.order_by(Transfer.id.desc())
-            .all()
-        )
+        archiv = Transfer.query.order_by(Transfer.id.desc()).all()
     else:
-        archiv = (
-            Transfer.query.filter(
-                (Transfer.created_by == current_user.username)
-                | (Transfer.target_sklad == current_user.sklad)
-            )
-            .order_by(Transfer.id.desc())
-            .all()
-        )
+        archiv = Transfer.query.filter(
+            (Transfer.created_by == current_user.username)
+            | (Transfer.target_sklad == current_user.sklad)
+        ).order_by(Transfer.id.desc()).all()
     return render_template("preskladneni_archiv.html", archiv=archiv)
 
-
-
-# routes.py (pouze část s funkcemi pro export)
-
-from flask import render_template, request, redirect, url_for, flash, send_file
-from flask_login import login_required, current_user
-from io import BytesIO
-from weasyprint import HTML
-
-from app import db
-from app.models import Product, Stock, Transfer, TransferItem
 
 @app.route("/export/transfer/<int:transfer_id>")
 @login_required
 def export_transfer(transfer_id):
     transfer = Transfer.query.get_or_404(transfer_id)
-    # oprávnění jako pro detail:
     if not (
         current_user.role == "admin"
         or current_user.sklad == "Pardubice"
@@ -1384,8 +1318,9 @@ def export_transfer(transfer_id):
     resp = make_response(pdf)
     resp.headers["Content-Type"] = "application/pdf"
     resp.headers["Content-Disposition"] = \
-      f"attachment; filename=preskladneni_{transfer.id}.pdf"
+        f"attachment; filename=preskladneni_{transfer.id}.pdf"
     return resp
+
 
 @app.route("/export/inventory", defaults={"sklad": None})
 @app.route("/export/inventory/<sklad>")
@@ -1397,7 +1332,6 @@ def export_inventory(sklad):
     """
     sklady = ["Praha", "Brno", "Pardubice", "Ostrava"]
 
-    # určení skladu
     if current_user.role == "admin" or current_user.sklad == "Pardubice":
         sklad = sklad or request.args.get("sklad", sklady[0])
         if sklad not in sklady:
@@ -1409,12 +1343,11 @@ def export_inventory(sklad):
             flash("Nemáte přiřazen žádný sklad.", "danger")
             return redirect(url_for("dashboard"))
 
-    # definice velikostí včetně 'ostatni'
     velikosti = {
-        "saty":     list(range(32, 56, 2)),
-        "boty":     list(range(36, 43)),
-        "doplnky":  [],       # pro doplňky se nebude iterovat přes velikosti
-        "ostatni":  [],       # pro ostatní stejně
+        "saty":    list(range(32, 56, 2)),
+        "boty":    list(range(36, 43)),
+        "doplnky": [],  # neiterovat
+        "ostatni": [],  # neiterovat
     }
 
     produkty = Product.query.order_by(Product.name).all()
@@ -1467,10 +1400,29 @@ def export_inventory(sklad):
     )
 
 
+def _parse_qty_form(form):
+    """
+    Z request.form vezme všechny klíče začínající na 'qty_'
+    a vrátí dict ve tvaru {pid_str: {size_str: qty_int}} pouze s vyplněnými poli.
+    """
+    inv = {}
+    for key, val in form.items():
+        if not key.startswith("qty_"):
+            continue
+        _, pid, size = key.split("_", 2)
+        if val.strip() == "":
+            continue
+        try:
+            qty = int(val)
+        except ValueError:
+            continue
+        inv.setdefault(pid, {})[size] = qty
+    return inv
+
+
 @app.route("/inventura", methods=["GET", "POST"])
 @login_required
 def inventura():
-    # ---------- role / sklad ----------
     sklady = ["Praha", "Brno", "Pardubice", "Ostrava"]
 
     if current_user.role == "admin":
@@ -1485,68 +1437,64 @@ def inventura():
             flash("Nemáte přiřazen žádný sklad.", "danger")
             return redirect(url_for("dashboard"))
 
-    # ---------- definice velikostí včetně kategorie 'ostatni' ----------
     velikosti = {
-        "saty":     list(range(32, 56, 2)),
-        "boty":     list(range(36, 43)),
-        "doplnky":  [None],
-        "ostatni":  [None],
+        "saty":    list(range(32, 56, 2)),
+        "boty":    list(range(36, 43)),
+        "doplnky": [None],
+        "ostatni": [None],
     }
 
-    # ---------- POST ----------
     if request.method == "POST":
-
-        # ===== ULOŽIT =====
         if "save_inventura" in request.form:
             session["inventura_data"] = _parse_qty_form(request.form)
             session.modified = True
             flash("Inventura dočasně uložena.", "success")
             return redirect(url_for("inventura", sklad=sklad))
 
-        # ===== ODESLAT (náhled) =====
         if "submit_inventura" in request.form:
             session["inventura_data"] = _parse_qty_form(request.form)
             session.modified = True
 
-            inv   = session["inventura_data"]
+            inv = session["inventura_data"]
             diffs = []
             for pid_str, sizes in inv.items():
                 pid = int(pid_str)
                 for size_str, new_qty in sizes.items():
-                    size = None if size_str in ("None","") else int(size_str)
+                    size = None if size_str in ("None", "") else int(size_str)
                     st = Stock.query.filter_by(
                         product_id=pid, sklad=sklad, size=size
                     ).first()
                     old_qty = st.quantity if st else 0
-                    delta   = new_qty - old_qty
+                    delta = new_qty - old_qty
                     if delta:
                         prod = Product.query.get(pid)
-                        diffs.append(dict(
-                            label=prod.variant_label,
-                            size=size or "-",
-                            old=old_qty,
-                            new=new_qty,
-                            delta=delta
-                        ))
+                        diffs.append({
+                            "label": prod.variant_label,
+                            "size": size or "-",
+                            "old": old_qty,
+                            "new": new_qty,
+                            "delta": delta
+                        })
 
-            return render_template("inventura.html",
-                                   mode="preview",
-                                   sklad=sklad,
-                                   sklady=sklady,
-                                   diffs=diffs)
+            return render_template(
+                "inventura.html",
+                mode="preview",
+                sklad=sklad,
+                sklady=sklady,
+                diffs=diffs
+            )
 
-        # ===== POTVRDIT =====
         if "confirm_inventura" in request.form:
             inv = session.pop("inventura_data", {})
             for pid_str, sizes in inv.items():
                 pid = int(pid_str)
                 for size_str, new_qty in sizes.items():
-                    size = None if size_str in ("None","") else int(size_str)
+                    size = None if size_str in ("None", "") else int(size_str)
                     st = Stock.query.filter_by(
                         product_id=pid, sklad=sklad, size=size
                     ).first()
                     old_qty = st.quantity if st else 0
-                    delta   = new_qty - old_qty
+                    delta = new_qty - old_qty
 
                     if st:
                         st.quantity = new_qty
@@ -1571,25 +1519,20 @@ def inventura():
             flash("Inventura potvrzena a uložena.", "success")
             return redirect(url_for("inventura", sklad=sklad))
 
-    # ---------- GET ----------
     inv = session.get("inventura_data", {})
     produkty = Product.query.order_by(Product.name).all()
 
-    # připravíme data rozdělená do 4 kategorií
     data_by_cat = {
-        "saty":    [],
-        "boty":    [],
-        "doplnky": [],
-        "ostatni": [],
+        "saty": [], "boty": [], "doplnky": [], "ostatni": []
     }
     for p in produkty:
         kat = p.category
         row = {
-            "product_id":   p.id,
-            "name":         p.name,
-            "color":        p.color,
-            "back_solution":p.back_solution,
-            "qtys":         {}
+            "product_id":    p.id,
+            "name":          p.name,
+            "color":         p.color,
+            "back_solution": p.back_solution,
+            "qtys":          {}
         }
         for v in velikosti[kat]:
             st = Stock.query.filter_by(
@@ -1608,4 +1551,3 @@ def inventura():
         velikosti=velikosti,
         data_by_cat=data_by_cat
     )
-
