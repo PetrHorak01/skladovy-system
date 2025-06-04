@@ -174,9 +174,24 @@ def produkty():
         # pro každý sklad a každou velikost založíme zásobu
         for sklad in ["Praha", "Brno", "Pardubice", "Ostrava"]:
             for size in velikosti:
-                db.session.add(Stock(product_id=produkt.id, sklad=sklad, size=size, quantity=0))
-            # záznam pro poznámku
-            db.session.add(Stock(product_id=produkt.id, sklad=sklad, size=None, quantity=0))
+                db.session.add(
+                    Stock(
+                        product_id=produkt.id,
+                        sklad=sklad,
+                        size=size,
+                        quantity=0,
+                    )
+                )
+            # záznam pro poznámku (pouze pokud není velikost "None" již přidána)
+            if None not in velikosti:
+                db.session.add(
+                    Stock(
+                        product_id=produkt.id,
+                        sklad=sklad,
+                        size=None,
+                        quantity=0,
+                    )
+                )
 
         db.session.commit()
         flash("Produkt byl přidán.")
