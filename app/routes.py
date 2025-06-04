@@ -315,7 +315,6 @@ def naskladnit():
         vybrana_kategorie = "saty"
 
     form = NaskladnitForm()
-
     if current_user.role == "admin":
         form.sklad.choices = [(s, s) for s in sklady]
     else:
@@ -367,7 +366,7 @@ def naskladnit():
             stock = Stock.query.filter_by(
                 product_id=prod.id,
                 sklad=selected_sklad,
-                size=None
+                size=None      # tady size=None!!!
             ).first()
         else:
             stock = Stock.query.filter_by(
@@ -419,7 +418,6 @@ def vyskladnit():
         vybrana_kategorie = "saty"
 
     form = VyskladnitForm()
-
     if current_user.role == "admin":
         form.sklad.choices = [(s, s) for s in sklady]
     else:
@@ -471,7 +469,7 @@ def vyskladnit():
             stock = Stock.query.filter_by(
                 product_id=prod.id,
                 sklad=selected_sklad,
-                size=None
+                size=None    # tady size=None!!!
             ).first()
         else:
             stock = Stock.query.filter_by(
@@ -1210,6 +1208,7 @@ def export_transfer(transfer_id):
 def export_inventory(sklad):
     sklady = ["Praha", "Brno", "Pardubice", "Ostrava"]
 
+    # Určení, který sklad se má exportovat
     if current_user.role == "admin" or current_user.sklad == "Pardubice":
         sklad = sklad or request.args.get("sklad", sklady[0])
         if sklad not in sklady:
@@ -1221,11 +1220,12 @@ def export_inventory(sklad):
             flash("Nemáte přiřazen žádný sklad.", "danger")
             return redirect(url_for("dashboard"))
 
+    # Definice všech velikostí pro ostatní kategorie
     velikosti = {
-        "saty":    list(range(32, 56, 2)),
-        "boty":    list(range(36, 43)),
-        "doplnky": [],    # neiterovat
-        "ostatni": []     # neiterovat
+        "saty":     list(range(32, 56, 2)),
+        "boty":     list(range(36, 43)),
+        "doplnky":  [],   # tady neiterujeme přes velikosti
+        "ostatni":  []    # tady neiterujeme
     }
 
     produkty = Product.query.order_by(Product.name).all()
@@ -1235,6 +1235,7 @@ def export_inventory(sklad):
 
     for p in produkty:
         if p.category in ["doplnky", "ostatni"]:
+            # !!! tady MUSÍ být size=None !!!
             st = Stock.query.filter_by(
                 product_id=p.id,
                 sklad=sklad,
@@ -1278,21 +1279,6 @@ def export_inventory(sklad):
         as_attachment=True
     )
 
-
-def _parse_qty_form(form):
-    inv = {}
-    for key, val in form.items():
-        if not key.startswith("qty_"):
-            continue
-        _, pid, size = key.split("_", 2)
-        if val.strip() == "":
-            continue
-        try:
-            qty = int(val)
-        except ValueError:
-            continue
-        inv.setdefault(pid, {})[size] = qty
-    return inv
 
 
 @app.route("/inventura", methods=["GET", "POST"])
