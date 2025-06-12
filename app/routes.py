@@ -1186,7 +1186,119 @@ def preskladnit():
         kosik_ostatni=kosik_ostatni,
         velikosti=velikosti
     )
+@app.route("/preskladneni/<int:transfer_id>", methods=["GET", "POST"])
+@login_required
+def preskladneni_detail(transfer_id):
+    zpet = request.args.get("z", "seznam")
+    transfer = Transfer.query.get_or_404(transfer_id)
 
+    if not (
+        current_user.role == "admin"
+        or current_user.sklad == "Pardubice"
+        or transfer.target_sklad == current_user.sklad
+    ):
+        flash("Nemáte oprávnění potvrdit toto přeskladnění.", "danger")
+        return redirect(url_for("dashboard"))
+
+    polozky = TransferItem.query.filter_by(transfer_id=transfer_id).all()
+
+    if request.method == "POST" and transfer.status == "v_tranzitu":
+        try:
+            for pol in polozky:
+                sklad_cil = Stock.query.filter_by(
+                    product_id=pol.product_id,
+                    sklad=transfer.target_sklad,
+                    size=pol.size,
+                ).first()
+                if sklad_cil:
+                    sklad_cil.quantity += pol.quantity
+                else:
+                    db.session.add(Stock(
+                        product_id=pol.product_id,
+                        sklad=transfer.target_sklad,
+                        size=pol.size,
+                        quantity=pol.quantity,
+                    ))
+
+                db.session.add(History(
+                    user=current_user.username,
+                    sklad=transfer.target_sklad,
+                    product_id=pol.product_id,
+                    size=pol.size,
+                    change_type="preskladneni_nasklad",
+                    amount=pol.quantity,
+                    timestamp=datetime.now()
+                ))
+
+            transfer.status = "potvrzeno"
+            transfer.confirmed_by = current_user.username
+            transfer.confirmed_at = datetime.now()
+            db.session.commit()
+            flash("Přeskladnění potvrzeno a naskladněno.", "success")
+            return redirect(url_for("preskladneni_seznam"))
+        except Exception as e:
+            db.session.rollback()
+            flash(str(e), "danger")
+            return redirect(url_for("preskladneni_detail", transfer_id=transfer_id, z=zpet))
+
+    # příprava detailu (štítky apod.)
+    produkty = {p.id: p for p in Product.query.all()}
+    podrobnosti = []
+    for pol in polozky:
+        prod = produkty.get(pol.product_id)
+        label = f"{prod.name}-{prod.color or '-'}-{prod.back_solution or '-'}" if prod else "-"
+        podrobnosti.append({
+            "label":    label,
+            "size":     pol.size or "-",
+            "quantity": pol.quantity,
+        })
+
+    return render_template(
+        "preskladneni_detail.html",
+        transfer=transfer,
+        polozky=podrobnosti,
+        zpet=zpet
+    )
+
+@app.route("/preskladneni_seznam")
+@login_required
+def preskladneni_seznam():
+    # admin a skladník Pardubice → všechny v_tranzitu
+    if current_user.role == "admin" or current_user.sklad == "Pardubice":
+        transfers = Transfer.query.filter_by(status="v_tranzitu").order_by(Transfer.created_at.desc()).all()
+    else:
+        # ostatní skladníci vidí jen ty, které míří k nim
+        transfers = Transfer.query.filter_by(
+            status="v_tranzitu",
+            target_sklad=current_user.sklad
+        ).order_by(Transfer.created_at.desc()).all()
+
+    return render_template(
+        "preskladneni_seznam.html",
+        transfers=transfers
+    )
+
+
+
+@app.route("/preskladneni_archiv")
+@login_required
+def preskladneni_archiv():
+    # admin NEBO uživatel s přiděleným skladem Pardubice
+    if current_user.role == "admin" or current_user.sklad == "Pardubice":
+        archiv = (
+            Transfer.query.order_by(Transfer.id.desc())
+            .all()
+        )
+    else:
+        archiv = (
+            Transfer.query.filter(
+                (Transfer.created_by == current_user.username)
+                | (Transfer.target_sklad == current_user.sklad)
+            )
+            .order_by(Transfer.id.desc())
+            .all()
+        )
+    return render_template("preskladneni_archiv.html", archiv=archiv)
 
 @app.route("/export/transfer/<int:transfer_id>")
 @login_required
