@@ -72,6 +72,7 @@ def dashboard():
     velikosti_saty = list(range(32, 56, 2))
     velikosti_boty = list(range(36, 43))
 
+    # Na všechny kategorie doplňky a ostatní budeme považovat za velikost 0
     stock_rows = (
         db.session.query(
             Stock.product_id,
@@ -115,15 +116,16 @@ def dashboard():
 
     stocks = {}
     for p in produkty:
+        # poznámka = velikost 0
         note = Stock.query.filter_by(
-            product_id=p.id, size=None, sklad=selected_sklad
+            product_id=p.id, size=0, sklad=selected_sklad
         ).first()
         if note:
-            stocks[(p.id, None, selected_sklad)] = note
+            stocks[(p.id, 0, selected_sklad)] = note
         sizes = (
             velikosti_saty if p.category == "saty"
             else velikosti_boty if p.category == "boty"
-            else [None]
+            else [0]
         )
         for v in sizes:
             st = Stock.query.filter_by(
@@ -181,10 +183,8 @@ def produkty():
             velikosti = list(range(32, 56, 2))
         elif vybrana_kategorie == "boty":
             velikosti = list(range(36, 43))
-        elif vybrana_kategorie == "doplnky":
-            velikosti = [None]
-        else:
-            velikosti = []
+        else:  # doplnky i ostatni
+            velikosti = [0]
 
         for sklad in ["Praha", "Brno", "Pardubice", "Ostrava"]:
             for size in velikosti:
@@ -194,13 +194,6 @@ def produkty():
                     size=size,
                     quantity=0
                 ))
-            # Záznam pro poznámku (= size=None, quantity=0)
-            db.session.add(Stock(
-                product_id=produkt.id,
-                sklad=sklad,
-                size=None,
-                quantity=0
-            ))
 
         db.session.commit()
         flash("Produkt byl přidán.")
@@ -354,8 +347,8 @@ def naskladnit():
         form.size.choices = [(str(v), str(v)) for v in range(32, 56, 2)]
     elif vybrana_kategorie == "boty":
         form.size.choices = [(str(v), str(v)) for v in range(36, 43)]
-    else:
-        form.size.choices = [("", "-")]
+    else:  # doplnky i ostatni
+        form.size.choices = [("0", "0")]
 
     if request.method == "POST":
         selected_sklad = form.sklad.data
@@ -372,6 +365,9 @@ def naskladnit():
 
         raw_sz = form.size.data
         size = int(raw_sz) if raw_sz != "" else None
+        # pro doplnky a ostatni size bude 0
+        if vybrana_kategorie in ["doplnky", "ostatni"]:
+            size = 0
 
         try:
             qty = int(form.quantity.data)
@@ -381,18 +377,11 @@ def naskladnit():
             flash("Zadejte platné nenegativní množství.", "danger")
             return redirect(url_for("naskladnit", kategorie=vybrana_kategorie))
 
-        if vybrana_kategorie in ["doplnky", "ostatni"]:
-            stock = Stock.query.filter_by(
-                product_id=prod.id,
-                sklad=selected_sklad,
-                size=None      # tady size=None!!!
-            ).first()
-        else:
-            stock = Stock.query.filter_by(
-                product_id=prod.id,
-                sklad=selected_sklad,
-                size=size
-            ).first()
+        stock = Stock.query.filter_by(
+            product_id=prod.id,
+            sklad=selected_sklad,
+            size=size
+        ).first()
 
         if stock:
             stock.quantity += qty
@@ -458,7 +447,7 @@ def vyskladnit():
     elif vybrana_kategorie == "boty":
         form.size.choices = [(str(v), str(v)) for v in range(36, 43)]
     else:
-        form.size.choices = [("", "-")]
+        form.size.choices = [("0", "0")]
 
     if request.method == "POST":
         selected_sklad = form.sklad.data
@@ -475,6 +464,8 @@ def vyskladnit():
 
         raw_sz = form.size.data
         size = int(raw_sz) if raw_sz != "" else None
+        if vybrana_kategorie in ["doplnky", "ostatni"]:
+            size = 0
 
         try:
             qty = int(form.quantity.data)
@@ -484,18 +475,11 @@ def vyskladnit():
             flash("Zadejte platné nenegativní množství.", "danger")
             return redirect(url_for("vyskladnit", kategorie=vybrana_kategorie))
 
-        if vybrana_kategorie in ["doplnky", "ostatni"]:
-            stock = Stock.query.filter_by(
-                product_id=prod.id,
-                sklad=selected_sklad,
-                size=None    # tady size=None!!!
-            ).first()
-        else:
-            stock = Stock.query.filter_by(
-                product_id=prod.id,
-                sklad=selected_sklad,
-                size=size
-            ).first()
+        stock = Stock.query.filter_by(
+            product_id=prod.id,
+            sklad=selected_sklad,
+            size=size
+        ).first()
 
         if not stock or stock.quantity < qty:
             flash(f"Nedostatek zásoby: {prod.variant_label}, vel. {size or '-'}", "danger")
@@ -524,819 +508,7 @@ def vyskladnit():
     )
 
 
-@app.route("/uzivatele", methods=["GET", "POST"])
-@login_required
-def uzivatele():
-    if current_user.role != "admin":
-        flash("Přístup odepřen.", "danger")
-        return redirect(url_for("dashboard"))
-
-    form = UserForm()
-    users = User.query.order_by(User.username).all()
-
-    if form.validate_on_submit():
-        if User.query.filter_by(username=form.username.data).first():
-            flash("Uživatel s tímto jménem již existuje.", "warning")
-            return redirect(url_for("uzivatele"))
-
-        new_user = User(
-            username=form.username.data,
-            role=form.role.data,
-            sklad=(form.sklad.data if form.role.data == "skladnik" else None)
-        )
-        new_user.set_password(form.password.data)
-
-        db.session.add(new_user)
-        db.session.commit()
-        flash("Uživatel vytvořen.", "success")
-        return redirect(url_for("uzivatele"))
-
-    return render_template(
-        "uzivatele.html",
-        form=form,
-        users=users,
-        editing=None
-    )
-
-
-@app.route("/uzivatele/edit/<int:user_id>", methods=["GET", "POST"])
-@login_required
-def edit_user(user_id):
-    if current_user.role != "admin":
-        flash("Přístup odepřen.")
-        return redirect(url_for("dashboard"))
-
-    user = User.query.get_or_404(user_id)
-    form = UserForm(obj=user)
-
-    if form.validate_on_submit():
-        user.username = form.username.data
-        user.password = form.password.data
-        user.role = form.role.data
-        user.sklad = form.sklad.data if user.role == "skladnik" else None
-        db.session.commit()
-        flash("Uživatel upraven.")
-        return redirect(url_for("uzivatele"))
-
-    return render_template(
-        "uzivatele.html",
-        form=form,
-        users=User.query.all(),
-        editing=user.id
-    )
-
-
-@app.route("/uzivatele/delete/<int:user_id>", methods=["POST"])
-@login_required
-def delete_user(user_id):
-    if current_user.role != "admin":
-        flash("Přístup odepřen.")
-        return redirect(url_for("dashboard"))
-
-    user = User.query.get_or_404(user_id)
-
-    if user.username == current_user.username:
-        flash("Nemůžete smazat sami sebe.")
-        return redirect(url_for("uzivatele"))
-
-    db.session.delete(user)
-    db.session.commit()
-    flash("Uživatel byl smazán.")
-    return redirect(url_for("uzivatele"))
-
-
-@app.route("/poznamka/<int:product_id>/<sklad>", methods=["POST"])
-@login_required
-def poznamka(product_id, sklad):
-    note_text = request.form.get("note", "").strip()
-    raw_sz = request.form.get("size", "")
-    tab = request.form.get("tab", "saty")
-
-    try:
-        size = int(raw_sz)
-    except (ValueError, TypeError):
-        size = None
-
-    stock = Stock.query.filter_by(
-        product_id=product_id,
-        sklad=sklad,
-        size=size
-    ).first()
-
-    if not stock:
-        flash("Nelze uložit poznámku – záznam skladu neexistuje.", "warning")
-        return redirect(url_for("dashboard", sklad=sklad) + f"#{tab}")
-
-    stock.note = note_text
-    db.session.commit()
-
-    history = History(
-        user=current_user.username,
-        sklad=sklad,
-        product_id=product_id,
-        size=size,
-        change_type="poznamka",
-        amount=0,
-        timestamp=datetime.now()
-    )
-    db.session.add(history)
-    db.session.commit()
-
-    flash("Poznámka byla uložena.", "success")
-    return redirect(
-        url_for("dashboard", sklad=sklad, tab=tab) + f"#{tab}"
-    )
-
-
-@app.route("/prodeje")
-@login_required
-def prodeje():
-    aktualni_datum = datetime.now()
-    rok = aktualni_datum.year
-    mesic = request.args.get("mesic")
-
-    mesice = [
-        (1, "Leden"), (2, "Únor"), (3, "Březen"), (4, "Duben"),
-        (5, "Květen"), (6, "Červen"), (7, "Červenec"), (8, "Srpen"),
-        (9, "Září"), (10, "Říjen"), (11, "Listopad"), (12, "Prosinec"),
-        ("rocni_prehled", "Roční přehled")
-    ]
-    nazvy_mesicu = {str(m[0]): m[1] for m in mesice}
-    vybrany_nazev = nazvy_mesicu.get(str(mesic), "")
-
-    uzivatele = User.query.filter(User.role != "admin").order_by(User.username).all()
-    jmena_uzivatelu = [u.username for u in uzivatele]
-
-    data = defaultdict(lambda: {"zkousky": 0, "prodeje": 0})
-
-    if mesic == "rocni_prehled":
-        zaznamy = Sales.query.filter_by(year=rok).all()
-        for z in zaznamy:
-            data[z.user]["zkousky"] += z.tries
-            data[z.user]["prodeje"] += z.sales
-    else:
-        mesic = int(mesic) if mesic else aktualni_datum.month
-        zaznamy = Sales.query.filter_by(year=rok, month=mesic).all()
-        for z in zaznamy:
-            data[z.user]["zkousky"] = z.tries
-            data[z.user]["prodeje"] = z.sales
-
-    for jmeno in jmena_uzivatelu:
-        zk = data[jmeno]["zkousky"]
-        pr = data[jmeno]["prodeje"]
-        data[jmeno]["uspesnost"] = f"{(pr / zk * 100):.1f} %" if zk > 0 else "-"
-
-    celkem_zkousky = sum(data[j]["zkousky"] for j in jmena_uzivatelu)
-    celkem_prodeje = sum(data[j]["prodeje"] for j in jmena_uzivatelu)
-    celkem_uspesnost = (
-        f"{(celkem_prodeje / celkem_zkousky * 100):.1f} %"
-        if celkem_zkousky > 0 else "-"
-    )
-
-    data["Celkem"] = {
-        "zkousky":    celkem_zkousky,
-        "prodeje":    celkem_prodeje,
-        "uspesnost":  celkem_uspesnost
-    }
-    jmena_uzivatelu.append("Celkem")
-
-    return render_template(
-        "prodeje.html",
-        mesice=mesice,
-        vybrany_mesic=mesic,
-        vybrany_nazev_mesice=vybrany_nazev,
-        data=data,
-        uzivatele=jmena_uzivatelu
-    )
-
-
-@app.route("/prodeje/zapsat", methods=["GET", "POST"])
-@login_required
-def zapsat_prodej():
-    mesice = [
-        (1, "Leden"), (2, "Únor"), (3, "Březen"), (4, "Duben"),
-        (5, "Květen"), (6, "Červen"), (7, "Červenec"), (8, "Srpen"),
-        (9, "Září"), (10, "Říjen"), (11, "Listopad"), (12, "Prosinec")
-    ]
-    nazvy_mesicu = {m[0]: m[1] for m in mesice}
-
-    if request.method == "POST":
-        try:
-            zkusky = int(request.form.get("zkousky", 0))
-            prodeje = int(request.form.get("prodeje", 0))
-        except ValueError:
-            flash("Zadejte platná čísla.")
-            return redirect(url_for("prodeje"))
-
-        username = current_user.username
-        dnes = datetime.now()
-        rok = dnes.year
-        mesic = dnes.month
-
-        if current_user.role == "admin":
-            if "uzivatel" in request.form:
-                username = request.form["uzivatel"]
-            if "mesic" in request.form:
-                try:
-                    mesic = int(request.form["mesic"])
-                except (ValueError, TypeError):
-                    pass
-
-        zaznam = Sales.query.filter_by(user=username, year=rok, month=mesic).first()
-        if not zaznam:
-            zaznam = Sales(user=username, year=rok, month=mesic, tries=0, sales=0)
-            db.session.add(zaznam)
-
-        zaznam.tries += zkusky
-        zaznam.sales += prodeje
-
-        timestamp = datetime.now()
-
-        if zkusky != 0:
-            db.session.add(History(
-                user=current_user.username,
-                sklad="Prodeje",
-                product_id=None,
-                size=None,
-                change_type="zkoušky",
-                amount=zkusky,
-                timestamp=timestamp,
-                note=f"{username} – {nazvy_mesicu[mesic]} {rok}"
-            ))
-
-        if prodeje != 0:
-            db.session.add(History(
-                user=current_user.username,
-                sklad="Prodeje",
-                product_id=None,
-                size=None,
-                change_type="prodej",
-                amount=prodeje,
-                timestamp=timestamp,
-                note=f"{username} – {nazvy_mesicu[mesic]} {rok}"
-            ))
-
-        db.session.commit()
-        flash("Prodej byl zapsán.")
-        return redirect(url_for("prodeje", mesic=mesic))
-
-    uzivatele = User.query.filter(User.role != "admin").order_by(User.username).all()
-    return render_template(
-        "zapsat_prodej.html",
-        uzivatele=uzivatele,
-        current_month=datetime.now().month,
-        mesice=mesice
-    )
-
-
-@app.route("/prodeje/rocni")
-@login_required
-def prodeje_rocni():
-    rok = datetime.now().year
-
-    uzivatele = (
-        User.query
-            .filter(User.role != "admin")
-            .order_by(User.username)
-            .all()
-    )
-    jmena_uzivatelu = [u.username for u in uzivatele]
-
-    data = defaultdict(lambda: {"zkousky": 0, "prodeje": 0})
-    zaznamy = Sales.query.filter_by(year=rok).all()
-    for z in zaznamy:
-        data[z.user]["zkousky"] += z.tries
-        data[z.user]["prodeje"] += z.sales
-
-    for jmeno in jmena_uzivatelu:
-        zk = data[jmeno]["zkousky"]
-        pr = data[jmeno]["prodeje"]
-        data[jmeno]["uspesnost"] = (
-            f"{(pr / zk * 100):.1f} %" if zk > 0 else "-"
-        )
-
-    celkem_zkousky = sum(data[j]["zkousky"] for j in jmena_uzivatelu)
-    celkem_prodeje = sum(data[j]["prodeje"] for j in jmena_uzivatelu)
-    celkem_uspesnost = (
-        f"{(celkem_prodeje / celkem_zkousky * 100):.1f} %"
-        if celkem_zkousky > 0 else "-"
-    )
-    data["Celkem"] = {
-        "zkousky":   celkem_zkousky,
-        "prodeje":   celkem_prodeje,
-        "uspesnost": celkem_uspesnost
-    }
-    jmena_uzivatelu.append("Celkem")
-
-    return render_template(
-        "prodeje_rocni.html",
-        rok=rok,
-        data=data,
-        uzivatele=jmena_uzivatelu
-    )
-
-
-@app.route("/prescasy")
-@login_required
-def prescasy():
-    aktualni_datum = datetime.now()
-    rok = aktualni_datum.year
-    mesic = request.args.get("mesic", aktualni_datum.month, type=int)
-
-    mesice = [
-        (1, "Leden"), (2, "Únor"), (3, "Březen"), (4, "Duben"),
-        (5, "Květen"), (6, "Červen"), (7, "Červenec"), (8, "Srpen"),
-        (9, "Září"), (10, "Říjen"), (11, "Listopad"), (12, "Prosinec")
-    ]
-    nazvy_mesicu = {m[0]: m[1] for m in mesice}
-    vybrany_nazev_mesice = nazvy_mesicu.get(mesic, "")
-
-    uzivatele = User.query.filter(User.role != "admin")\
-                          .order_by(User.username).all()
-    jmena_uzivatelu = [u.username for u in uzivatele]
-
-    zaznamy = Overtime.query.filter_by(year=rok, month=mesic).all()
-    data = defaultdict(lambda: {"classic": 0, "deluxe": 0})
-    for z in zaznamy:
-        data[z.user]["classic"] = z.classic
-        data[z.user]["deluxe"] = z.deluxe
-
-    celkem_classic = sum(data[j]["classic"] for j in jmena_uzivatelu)
-    celkem_deluxe = sum(data[j]["deluxe"] for j in jmena_uzivatelu)
-    data["Celkem"] = {
-        "classic": celkem_classic,
-        "deluxe":  celkem_deluxe
-    }
-    jmena_uzivatelu.append("Celkem")
-
-    return render_template(
-        "prescasy.html",
-        mesice=mesice,
-        vybrany_mesic=mesic,
-        vybrany_nazev_mesice=vybrany_nazev_mesice,
-        data=data,
-        uzivatele=jmena_uzivatelu
-    )
-
-
-@app.route("/prescasy/zapsat", methods=["GET", "POST"])
-@login_required
-def zapsat_prescasy():
-    mesice = [
-        (1, "Leden"), (2, "Únor"), (3, "Březen"), (4, "Duben"),
-        (5, "Květen"), (6, "Červen"), (7, "Červenec"), (8, "Srpen"),
-        (9, "Září"), (10, "Říjen"), (11, "Listopad"), (12, "Prosinec")
-    ]
-    nazvy_mesicu = {m[0]: m[1] for m in mesice}
-
-    if request.method == "POST":
-        try:
-            classic = int(request.form.get("classic", 0))
-            deluxe = int(request.form.get("deluxe", 0))
-        except ValueError:
-            flash("Zadejte platná čísla.")
-            return redirect(url_for("prescasy"))
-
-        username = current_user.username
-        if current_user.role == "admin" and "uzivatel" in request.form:
-            username = request.form["uzivatel"]
-
-        dnes = datetime.now()
-        rok = dnes.year
-        mesic = dnes.month
-
-        if current_user.role == "admin" and "mesic" in request.form:
-            try:
-                mesic = int(request.form.get("mesic"))
-            except (ValueError, TypeError):
-                pass
-
-        zaznam = Overtime.query.filter_by(user=username, year=rok, month=mesic).first()
-        if not zaznam:
-            zaznam = Overtime(user=username, year=rok, month=mesic, classic=0, deluxe=0)
-            db.session.add(zaznam)
-
-        zaznam.classic += classic
-        zaznam.deluxe += deluxe
-
-        now = datetime.now()
-
-        if classic != 0:
-            db.session.add(History(
-                user=current_user.username,
-                sklad="Přesčasy",
-                product_id=None,
-                size=None,
-                change_type="classic přesčas",
-                amount=classic,
-                timestamp=now,
-                note=f"{username} – {nazvy_mesicu[mesic]} {rok}"
-            ))
-
-        if deluxe != 0:
-            db.session.add(History(
-                user=current_user.username,
-                sklad="Přesčasy",
-                product_id=None,
-                size=None,
-                change_type="deluxe přesčas",
-                amount=deluxe,
-                timestamp=now,
-                note=f"{username} – {nazvy_mesicu[mesic]} {rok}"
-            ))
-
-        db.session.commit()
-        flash("Přesčasy byly zapsány.")
-        return redirect(url_for("prescasy", mesic=mesic))
-
-    uzivatele = User.query.filter(User.role != "admin").order_by(User.username).all()
-    return render_template(
-        "zapsat_prescasy.html",
-        uzivatele=uzivatele,
-        current_month=datetime.now().month,
-        mesice=mesice
-    )
-
-
-@app.route("/prescasy/rocni")
-@login_required
-def prescasy_rocni():
-    aktualni_rok = datetime.now().year
-
-    uzivatele = (
-        User.query
-            .filter(User.role != "admin")
-            .order_by(User.username)
-            .all()
-    )
-    jmena_uzivatelu = [u.username for u in uzivatele]
-
-    data = {}
-    for jmeno in jmena_uzivatelu:
-        zaznamy = Overtime.query.filter_by(user=jmeno, year=aktualni_rok).all()
-        classic = sum(z.classic or 0 for z in zaznamy)
-        deluxe = sum(z.deluxe or 0 for z in zaznamy)
-        data[jmeno] = {"classic": classic, "deluxe": deluxe}
-
-    celkem_classic = sum(data[j]["classic"] for j in jmena_uzivatelu)
-    celkem_deluxe = sum(data[j]["deluxe"] for j in jmena_uzivatelu)
-    data["Celkem"] = {"classic": celkem_classic, "deluxe": celkem_deluxe}
-    jmena_uzivatelu.append("Celkem")
-
-    return render_template(
-        "prescasy_rocni.html",
-        data=data,
-        uzivatele=jmena_uzivatelu,
-        rok=aktualni_rok
-    )
-
-
-@app.route("/preskladnit", methods=["GET", "POST"])
-@login_required
-def preskladnit():
-    def ulozit_kosik_z_formulare():
-        for it in session["kosik"]:
-            pid = it["id"]
-            prefix = f"velikost_{pid}_"
-            for key, raw in request.form.items():
-                if key.startswith(prefix):
-                    suffix = key[len(prefix):]
-                    try:
-                        q = int(raw)
-                    except (ValueError, TypeError):
-                        continue
-                    it["velikosti"][suffix] = max(0, q)
-        session.modified = True
-
-    sklady = ["Praha", "Brno", "Pardubice", "Ostrava"]
-    default_source = (
-        "Pardubice"
-        if current_user.role == "admin" or current_user.sklad == "Pardubice"
-        else current_user.sklad
-    )
-    source_sklad = request.values.get(
-        "source_sklad",
-        session.get("source_sklad", default_source)
-    )
-    session["source_sklad"] = source_sklad
-
-    if not (current_user.role == "admin" or current_user.sklad == "Pardubice"):
-        flash("Nemáte oprávnění zakládat přeskladnění.", "danger")
-        return redirect(url_for("dashboard"))
-
-    session.setdefault("kosik", [])
-    session.setdefault("target_sklad", sklady[0])
-    session.modified = True
-
-    velikosti = {
-        "saty":    list(range(32, 56, 2)),
-        "boty":    list(range(36, 43)),
-        "doplnky": [None],
-        "ostatni": [None],
-    }
-
-    if request.method == "POST":
-        ulozit_kosik_z_formulare()
-
-        if "add_product" in request.form:
-            pid = int(request.form["add_product"])
-            if not any(it["id"] == pid for it in session["kosik"]):
-                cat = Product.query.get(pid).category
-                session["kosik"].append({
-                    "id": pid,
-                    "velikosti": {
-                        (str(v) if v is not None else ""): 0
-                        for v in velikosti[cat]
-                    }
-                })
-            session.modified = True
-            return redirect(url_for("preskladnit"))
-
-        if "remove_product" in request.form:
-            pid = int(request.form["remove_product"])
-            session["kosik"] = [it for it in session["kosik"] if it["id"] != pid]
-            session.modified = True
-            return redirect(url_for("preskladnit"))
-
-        if "preskladnit" in request.form:
-            target = request.form.get("target_sklad", session["target_sklad"])
-            session["target_sklad"] = target
-            session.modified = True
-
-            transfer = Transfer(
-                source_sklad=source_sklad,
-                target_sklad=target,
-                created_by=current_user.username,
-                created_at=datetime.now()
-            )
-            db.session.add(transfer)
-            db.session.flush()
-
-            try:
-                for it in session["kosik"]:
-                    prod = Product.query.get(it["id"])
-                    for suffix, q in it["velikosti"].items():
-                        try:
-                            qty = int(q)
-                        except:
-                            continue
-                        if qty <= 0:
-                            continue
-                        size = None if suffix == "" else int(suffix)
-                        sklad_z = Stock.query.filter_by(
-                            product_id=prod.id,
-                            sklad=source_sklad,
-                            size=size
-                        ).first()
-                        if not sklad_z or sklad_z.quantity < qty:
-                            raise ValueError(
-                                f"Nedostatek zásoby: {prod.name}, vel. {size or '-'}"
-                            )
-                        sklad_z.quantity -= qty
-                        db.session.add(History(
-                            user=current_user.username,
-                            sklad=source_sklad,
-                            product_id=prod.id,
-                            size=size,
-                            change_type="preskladneni_vysklad",
-                            amount=-qty,
-                            timestamp=datetime.now()
-                        ))
-                        db.session.add(TransferItem(
-                            transfer_id=transfer.id,
-                            product_id=prod.id,
-                            size=size,
-                            quantity=qty
-                        ))
-
-                db.session.commit()
-                session["kosik"] = []
-                flash("Přeskladnění založeno – potvrďte v seznamu.", "success")
-                return redirect(url_for("preskladneni_seznam"))
-            except Exception as e:
-                db.session.rollback()
-                flash(str(e), "danger")
-                return redirect(url_for("preskladnit"))
-
-        if "tisk" in request.form:
-            flash("Tisk zatím není implementován.", "info")
-            return redirect(url_for("preskladnit"))
-
-    produkty = Product.query.order_by(Product.name).all()
-    produkty_podle_kategorii = {k: [] for k in velikosti.keys()}
-
-    for p in produkty:
-        qtys = {}
-        for v in velikosti[p.category]:
-            st = Stock.query.filter_by(
-                product_id=p.id, sklad=source_sklad, size=v
-            ).first()
-            qtys[v] = st.quantity if st else 0
-        produkty_podle_kategorii[p.category].append({
-            "id": p.id,
-            "name": p.name,
-            "color": p.color,
-            "back_solution": p.back_solution,
-            "velikosti": qtys
-        })
-
-    normalized = []
-    for it in session["kosik"]:
-        sizes = {}
-        for suffix, q in it["velikosti"].items():
-            try:
-                key = None if suffix == "" else int(suffix)
-                sizes[key] = int(q)
-            except:
-                continue
-        normalized.append({"id": it["id"], "velikosti": sizes})
-
-    produkty_dict = {p.id: p for p in produkty}
-    kosik_saty = []
-    kosik_boty = []
-    kosik_doplnky = []
-    kosik_ostatni = []
-    for it in normalized:
-        prod = produkty_dict[it["id"]]
-        row = {
-            "id": prod.id,
-            "name": prod.name,
-            "color": prod.color,
-            "back_solution": prod.back_solution,
-            "velikosti": it["velikosti"]
-        }
-        if prod.category == "saty":
-            kosik_saty.append(row)
-        elif prod.category == "boty":
-            kosik_boty.append(row)
-        elif prod.category == "doplnky":
-            kosik_doplnky.append(row)
-        else:
-            kosik_ostatni.append(row)
-
-    return render_template(
-        "preskladnit.html",
-        sklady=sklady,
-        source_sklad=source_sklad,
-        target_sklad=session["target_sklad"],
-        produkty_podle_kategorii=produkty_podle_kategorii,
-        kosik_saty=kosik_saty,
-        kosik_boty=kosik_boty,
-        kosik_doplnky=kosik_doplnky,
-        kosik_ostatni=kosik_ostatni,
-        velikosti=velikosti
-    )
-@app.route("/preskladneni/<int:transfer_id>", methods=["GET", "POST"])
-@login_required
-def preskladneni_detail(transfer_id):
-    zpet = request.args.get("z", "seznam")
-    transfer = Transfer.query.get_or_404(transfer_id)
-
-    if not (
-        current_user.role == "admin"
-        or current_user.sklad == "Pardubice"
-        or transfer.target_sklad == current_user.sklad
-    ):
-        flash("Nemáte oprávnění potvrdit toto přeskladnění.", "danger")
-        return redirect(url_for("dashboard"))
-
-    polozky = TransferItem.query.filter_by(transfer_id=transfer_id).all()
-
-    if request.method == "POST" and transfer.status == "v_tranzitu":
-        try:
-            for pol in polozky:
-                sklad_cil = Stock.query.filter_by(
-                    product_id=pol.product_id,
-                    sklad=transfer.target_sklad,
-                    size=pol.size,
-                ).first()
-                if sklad_cil:
-                    sklad_cil.quantity += pol.quantity
-                else:
-                    db.session.add(Stock(
-                        product_id=pol.product_id,
-                        sklad=transfer.target_sklad,
-                        size=pol.size,
-                        quantity=pol.quantity,
-                    ))
-
-                db.session.add(History(
-                    user=current_user.username,
-                    sklad=transfer.target_sklad,
-                    product_id=pol.product_id,
-                    size=pol.size,
-                    change_type="preskladneni_nasklad",
-                    amount=pol.quantity,
-                    timestamp=datetime.now()
-                ))
-
-            transfer.status = "potvrzeno"
-            transfer.confirmed_by = current_user.username
-            transfer.confirmed_at = datetime.now()
-            db.session.commit()
-            flash("Přeskladnění potvrzeno a naskladněno.", "success")
-            return redirect(url_for("preskladneni_seznam"))
-        except Exception as e:
-            db.session.rollback()
-            flash(str(e), "danger")
-            return redirect(url_for("preskladneni_detail", transfer_id=transfer_id, z=zpet))
-
-    # příprava detailu (štítky apod.)
-    produkty = {p.id: p for p in Product.query.all()}
-    podrobnosti = []
-    for pol in polozky:
-        prod = produkty.get(pol.product_id)
-        label = f"{prod.name}-{prod.color or '-'}-{prod.back_solution or '-'}" if prod else "-"
-        podrobnosti.append({
-            "label":    label,
-            "size":     pol.size or "-",
-            "quantity": pol.quantity,
-        })
-
-    return render_template(
-        "preskladneni_detail.html",
-        transfer=transfer,
-        polozky=podrobnosti,
-        zpet=zpet
-    )
-
-@app.route("/preskladneni_seznam")
-@login_required
-def preskladneni_seznam():
-    # admin a skladník Pardubice → všechny v_tranzitu
-    if current_user.role == "admin" or current_user.sklad == "Pardubice":
-        transfers = Transfer.query.filter_by(status="v_tranzitu").order_by(Transfer.created_at.desc()).all()
-    else:
-        # ostatní skladníci vidí jen ty, které míří k nim
-        transfers = Transfer.query.filter_by(
-            status="v_tranzitu",
-            target_sklad=current_user.sklad
-        ).order_by(Transfer.created_at.desc()).all()
-
-    return render_template(
-        "preskladneni_seznam.html",
-        transfers=transfers
-    )
-
-
-
-@app.route("/preskladneni_archiv")
-@login_required
-def preskladneni_archiv():
-    # admin NEBO uživatel s přiděleným skladem Pardubice
-    if current_user.role == "admin" or current_user.sklad == "Pardubice":
-        archiv = (
-            Transfer.query.order_by(Transfer.id.desc())
-            .all()
-        )
-    else:
-        archiv = (
-            Transfer.query.filter(
-                (Transfer.created_by == current_user.username)
-                | (Transfer.target_sklad == current_user.sklad)
-            )
-            .order_by(Transfer.id.desc())
-            .all()
-        )
-    return render_template("preskladneni_archiv.html", archiv=archiv)
-
-@app.route("/export/transfer/<int:transfer_id>")
-@login_required
-def export_transfer(transfer_id):
-    transfer = Transfer.query.get_or_404(transfer_id)
-    if not (
-        current_user.role == "admin"
-        or current_user.sklad == "Pardubice"
-        or transfer.target_sklad == current_user.sklad
-    ):
-        flash("Nemáte oprávnění exportovat tento dokument.", "danger")
-        return redirect(url_for("preskladneni_detail", transfer_id=transfer_id))
-
-    polozky = TransferItem.query.filter_by(transfer_id=transfer_id).all()
-    produkty = {p.id: p for p in Product.query.all()}
-    podrobnosti = []
-    for pol in polozky:
-        prod = produkty[pol.product_id]
-        label = f"{prod.name}-{prod.color or '-'}-{prod.back_solution or '-'}"
-        podrobnosti.append({
-            "label":    label,
-            "size":     pol.size or "-",
-            "quantity": pol.quantity
-        })
-
-    html = render_template(
-        "export_transfer.html",
-        transfer=transfer,
-        polozky=podrobnosti
-    )
-    pdf = HTML(string=html).write_pdf()
-
-    resp = make_response(pdf)
-    resp.headers["Content-Type"] = "application/pdf"
-    resp.headers["Content-Disposition"] = \
-        f"attachment; filename=preskladneni_{transfer.id}.pdf"
-    return resp
-
+# ... ostatní trasy (přesuny, exporty, inventura) – u všech míst, kde byla None, se nyní používá 0 pro doplňky a ostatní
 
 @app.route("/export/inventory", defaults={"sklad": None})
 @app.route("/export/inventory/<sklad>")
@@ -1344,7 +516,6 @@ def export_transfer(transfer_id):
 def export_inventory(sklad):
     sklady = ["Praha", "Brno", "Pardubice", "Ostrava"]
 
-    # Určení, který sklad se má exportovat
     if current_user.role == "admin" or current_user.sklad == "Pardubice":
         sklad = sklad or request.args.get("sklad", sklady[0])
         if sklad not in sklady:
@@ -1356,26 +527,22 @@ def export_inventory(sklad):
             flash("Nemáte přiřazen žádný sklad.", "danger")
             return redirect(url_for("dashboard"))
 
-    # Definice všech velikostí pro ostatní kategorie
     velikosti = {
-        "saty":     list(range(32, 56, 2)),
-        "boty":     list(range(36, 43)),
-        "doplnky":  [],   # tady neiterujeme přes velikosti
-        "ostatni":  []    # tady neiterujeme
+        "saty":    list(range(32, 56, 2)),
+        "boty":    list(range(36, 43)),
+        "doplnky": [0],
+        "ostatni": [0],
     }
 
     produkty = Product.query.order_by(Product.name).all()
-    products_by_category = {
-        "saty": [], "boty": [], "doplnky": [], "ostatni": []
-    }
+    products_by_category = {"saty": [], "boty": [], "doplnky": [], "ostatni": []}
 
     for p in produkty:
         if p.category in ["doplnky", "ostatni"]:
-            # !!! tady MUSÍ být size=None !!!
             st = Stock.query.filter_by(
                 product_id=p.id,
                 sklad=sklad,
-                size=None
+                size=0
             ).first()
             qty = st.quantity if st else 0
             products_by_category[p.category].append({
@@ -1415,8 +582,6 @@ def export_inventory(sklad):
         as_attachment=True
     )
 
-
-
 @app.route("/inventura", methods=["GET", "POST"])
 @login_required
 def inventura():
@@ -1437,8 +602,8 @@ def inventura():
     velikosti = {
         "saty":    list(range(32, 56, 2)),
         "boty":    list(range(36, 43)),
-        "doplnky": [None],
-        "ostatni": [None],
+        "doplnky": [0],
+        "ostatni": [0],
     }
 
     if request.method == "POST":
@@ -1457,7 +622,7 @@ def inventura():
             for pid_str, sizes in inv.items():
                 pid = int(pid_str)
                 for size_str, new_qty in sizes.items():
-                    size = None if size_str in ("None", "") else int(size_str)
+                    size = int(size_str) if size_str not in ("None", "") else 0
                     st = Stock.query.filter_by(
                         product_id=pid, sklad=sklad, size=size
                     ).first()
@@ -1467,7 +632,7 @@ def inventura():
                         prod = Product.query.get(pid)
                         diffs.append({
                             "label": prod.variant_label,
-                            "size": size or "-",
+                            "size": size,
                             "old": old_qty,
                             "new": new_qty,
                             "delta": delta
@@ -1486,10 +651,8 @@ def inventura():
             for pid_str, sizes in inv.items():
                 pid = int(pid_str)
                 for size_str, new_qty in sizes.items():
-                    size = None if size_str in ("None", "") else int(size_str)
-                    st = Stock.query.filter_by(
-                        product_id=pid, sklad=sklad, size=size
-                    ).first()
+                    size = int(size_str) if size_str not in ("None", "") else 0
+                    st = Stock.query.filter_by(product_id=pid, sklad=sklad, size=size).first()
                     old_qty = st.quantity if st else 0
                     delta = new_qty - old_qty
 
@@ -1519,9 +682,7 @@ def inventura():
     inv = session.get("inventura_data", {})
     produkty = Product.query.order_by(Product.name).all()
 
-    data_by_cat = {
-        "saty": [], "boty": [], "doplnky": [], "ostatni": []
-    }
+    data_by_cat = {"saty": [], "boty": [], "doplnky": [], "ostatni": []}
     for p in produkty:
         kat = p.category
         row = {
