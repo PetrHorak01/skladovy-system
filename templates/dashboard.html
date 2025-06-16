@@ -1,15 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-{# ZMĚNA: Přidán blok <style> pro spolehlivé ukotvení hlavičky #}
-<style>
-  .table-responsive thead th {
-    position: -webkit-sticky; /* Prohlížeče Safari */
-    position: sticky;
-    top: 0;
-    z-index: 10; /* Zajišťuje, že hlavička překryje obsah těla tabulky */
-  }
-</style>
-
 <h2 class="mb-3">Skladový systém – Šaty za hubičku</h2>
 
 {# ===== tlačítka nad dashboardem ===== #}
@@ -72,7 +62,6 @@
     <h4 class="h5">Šaty</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        {# ZMĚNA: Třída "sticky-top" byla odebrána, styl se řeší přes CSS výše. Ponechána jen třída pro vzhled. #}
         <thead class="table-light">
           <tr>
             <th>Název</th><th>Barva</th><th>Řešení zad</th>
@@ -83,6 +72,15 @@
         </thead>
         <tbody>
           {% for p in tabulka_saty %}
+            {# ZMĚNA: Vložení opakující se hlavičky po každém 10. řádku #}
+            {% if loop.index0 > 0 and loop.index0 % 10 == 0 %}
+            <tr class="table-light">
+                <th>Název</th><th>Barva</th><th>Řešení zad</th>
+                {% for v in velikosti_saty %}<th>{{ v }}</th>{% endfor %}
+                <th>Celkem</th>
+                <th>Poznámka</th>
+            </tr>
+            {% endif %}
             <tr>
               <td>{{ p.name }}</td>
               <td>{{ p.color or '-' }}</td>
@@ -111,6 +109,15 @@
             </tr>
           {% endfor %}
         </tbody>
+        {# ZMĚNA: Přidání patičky tabulky s celkovým součtem #}
+        <tfoot>
+            <tr class="table-light fw-bold">
+                {# Colspan se vypočítá jako 3 pevné sloupce + počet velikostí #}
+                <td colspan="{{ 3 + velikosti_saty|length }}" class="text-end">Celkem skladem</td>
+                <td>{{ saty_grand_total }}</td>
+                <td></td> {# prázdná buňka pod poznámkou #}
+            </tr>
+        </tfoot>
       </table>
     </div>
   </div>
@@ -149,6 +156,13 @@
             </tr>
           {% endfor %}
         </tbody>
+        <tfoot>
+            <tr class="table-light fw-bold">
+                <td colspan="2" class="text-end">Celkem skladem</td>
+                <td>{{ doplnky_grand_total }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
       </table>
     </div>
   </div>
@@ -168,6 +182,14 @@
         </thead>
         <tbody>
           {% for p in tabulka_boty %}
+            {% if loop.index0 > 0 and loop.index0 % 10 == 0 %}
+            <tr class="table-light">
+                <th>Název</th>
+                {% for v in velikosti_boty %}<th>{{ v }}</th>{% endfor %}
+                <th>Celkem</th>
+                <th>Poznámka</th>
+            </tr>
+            {% endif %}
             <tr>
               <td>{{ p.name }}</td>
               {% for v in velikosti_boty %}
@@ -194,6 +216,13 @@
             </tr>
           {% endfor %}
         </tbody>
+        <tfoot>
+            <tr class="table-light fw-bold">
+                <td colspan="{{ 1 + velikosti_boty|length }}" class="text-end">Celkem skladem</td>
+                <td>{{ boty_grand_total }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
       </table>
     </div>
   </div>
@@ -231,6 +260,13 @@
             </tr>
           {% endfor %}
         </tbody>
+        <tfoot>
+            <tr class="table-light fw-bold">
+                <td class="text-end">Celkem skladem</td>
+                <td>{{ ostatni_grand_total }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
       </table>
     </div>
   </div>

@@ -112,11 +112,9 @@ def dashboard():
         elif p.category == "boty":
             tabulka_boty.append(base)
         elif p.category == "doplnky":
-            # Přidáme klíč pro univerzální velikost, aby se zobrazil v tabulce
             base["sizes"][UNIVERSAL_SIZE] = qty_map.get(p.id, {}).get(UNIVERSAL_SIZE, 0)
             tabulka_doplnky.append(base)
         elif p.category == "ostatni":
-            # Přidáme klíč pro univerzální velikost, aby se zobrazil v tabulce
             base["sizes"][UNIVERSAL_SIZE] = qty_map.get(p.id, {}).get(UNIVERSAL_SIZE, 0)
             tabulka_ostatni.append(base)
 
@@ -138,6 +136,12 @@ def dashboard():
             ).first()
             if st:
                 stocks[(p.id, v, selected_sklad)] = st
+    
+    # ZMĚNA: Výpočet celkových součtů pro každou kategorii
+    saty_grand_total = sum(sum(p['sizes'].values()) for p in tabulka_saty)
+    boty_grand_total = sum(sum(p['sizes'].values()) for p in tabulka_boty)
+    doplnky_grand_total = sum(p['sizes'].get(UNIVERSAL_SIZE, 0) for p in tabulka_doplnky)
+    ostatni_grand_total = sum(p['sizes'].get(UNIVERSAL_SIZE, 0) for p in tabulka_ostatni)
 
     return render_template(
         "dashboard.html",
@@ -147,13 +151,17 @@ def dashboard():
         active_tab=active_tab,
         velikosti_saty=velikosti_saty,
         velikosti_boty=velikosti_boty,
-        # Přidáme univerzální velikost pro šablony
         universal_size=UNIVERSAL_SIZE,
         tabulka_saty=tabulka_saty,
         tabulka_boty=tabulka_boty,
         tabulka_doplnky=tabulka_doplnky,
         tabulka_ostatni=tabulka_ostatni,
-        stocks=stocks
+        stocks=stocks,
+        # ZMĚNA: Předání celkových součtů do šablony
+        saty_grand_total=saty_grand_total,
+        boty_grand_total=boty_grand_total,
+        doplnky_grand_total=doplnky_grand_total,
+        ostatni_grand_total=ostatni_grand_total
     )
 
 
