@@ -115,13 +115,15 @@
             <tr>
               <td>{{ p.name }}</td>
               <td>{{ p.color or '-' }}</td>
-              {% set count = p.sizes.get(None) %}
+              {# ZMĚNA: Použije se velikost 0 (nebo universal_size z backendu) místo None #}
+              {% set count = p.sizes.get(0) %}
               <td
                 {% if count == 1 %}class="bg-success-subtle"
                 {% elif count and count > 1 %}class="bg-success"{% endif %}>
                 {{ count or '' }}
               </td>
               <td>
+                {# Logika pro poznámky zůstává, stále se váže na size=None #}
                 {% set key = (p.id, None, selected_sklad) %}
                 {% if key in stocks and stocks[key].note %}
                   <button type="button" class="btn btn-sm btn-outline-primary"
@@ -195,13 +197,15 @@
           {% for p in tabulka_ostatni %}
             <tr>
               <td>{{ p.name }}</td>
-              {% set count = p.sizes.get(None) %}
+              {# ZMĚNA: Použije se velikost 0 (nebo universal_size z backendu) místo None #}
+              {% set count = p.sizes.get(0) %}
               <td
                 {% if count == 1 %}class="bg-success-subtle"
                 {% elif count and count > 1 %}class="bg-success"{% endif %}>
                 {{ count or '' }}
               </td>
               <td>
+                {# Logika pro poznámky zůstává, stále se váže na size=None #}
                 {% set key = (p.id, None, selected_sklad) %}
                 {% if key in stocks and stocks[key].note %}
                   <button type="button" class="btn btn-sm btn-outline-primary"
@@ -231,7 +235,7 @@
         <input type="hidden" name="size" value="{{ size }}">
         <input type="hidden" name="tab"   value="{{ active_tab }}">
         <div class="modal-header">
-          <h5 class="modal-title">Poznámka – {{ st.product.name }}{% if size %} (vel. {{ size }}){% endif %}</h5>
+          <h5 class="modal-title">Poznámka – {{ st.product.name }}{% if size and size != 0 %} (vel. {{ size }}){% endif %}</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
