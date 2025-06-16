@@ -76,8 +76,10 @@
     <thead>
       <tr>
         <th>Název</th>
-        <th>Barva</th>
-        <th>Řešení zad</th>
+        {# ZMĚNA: Sloupec Barva zde není potřeba, boty barvu nemají #}
+        {# <th>Barva</th> #}
+        {# ZMĚNA: Sloupec Řešení zad zde nepatří #}
+        {# <th>Řešení zad</th> #}
         {% for v in velikosti['boty'] %}<th>{{ v }}</th>{% endfor %}
       </tr>
     </thead>
@@ -85,8 +87,10 @@
       {% for p in products_by_category['boty'] %}
       <tr>
         <td>{{ p.name }}</td>
-        <td>{{ p.color or '–' }}</td>
-        <td>{{ p.back_solution or '–' }}</td>
+        {# ZMĚNA: Buňka pro barvu odebrána #}
+        {# <td>{{ p.color or '–' }}</td> #}
+        {# ZMĚNA: Buňka pro řešení zad odebrána #}
+        {# <td>{{ p.back_solution or '–' }}</td> #}
         {% for v in velikosti['boty'] %}
           {% set cnt = p.sizes[v] %}
           <td class="{% if cnt == 0 %}bg-zero{% elif cnt == 1 %}bg-one{% else %}bg-two{% endif %}">
