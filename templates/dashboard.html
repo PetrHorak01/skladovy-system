@@ -62,10 +62,13 @@
     <h4 class="h5">Šaty</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        <thead>
+        {# ZMĚNA: Přidána třída "sticky-top" a "table-light" pro ukotvení a vzhled hlavičky #}
+        <thead class="table-light sticky-top">
           <tr>
             <th>Název</th><th>Barva</th><th>Řešení zad</th>
             {% for v in velikosti_saty %}<th>{{ v }}</th>{% endfor %}
+            {# ZMĚNA: Přidán sloupec pro celkový součet #}
+            <th>Celkem</th>
             <th>Poznámka</th>
           </tr>
         </thead>
@@ -83,6 +86,8 @@
                   {{ count or '' }}
                 </td>
               {% endfor %}
+              {# ZMĚNA: Přidána buňka se součtem hodnot ze slovníku p.sizes #}
+              <td class="fw-bold">{{ p.sizes.values() | sum }}</td>
               <td>
                 {% set key = (p.id, None, selected_sklad) %}
                 {% if key in stocks and stocks[key].note %}
@@ -107,7 +112,8 @@
     <h4 class="h5">Doplňky</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        <thead>
+        {# ZMĚNA: Přidána třída "sticky-top" a "table-light" #}
+        <thead class="table-light sticky-top">
           <tr><th>Název</th><th>Barva</th><th>Množství</th><th>Poznámka</th></tr>
         </thead>
         <tbody>
@@ -115,7 +121,6 @@
             <tr>
               <td>{{ p.name }}</td>
               <td>{{ p.color or '-' }}</td>
-              {# ZMĚNA: Použije se velikost 0 (nebo universal_size z backendu) místo None #}
               {% set count = p.sizes.get(0) %}
               <td
                 {% if count == 1 %}class="bg-success-subtle"
@@ -123,7 +128,6 @@
                 {{ count or '' }}
               </td>
               <td>
-                {# Logika pro poznámky zůstává, stále se váže na size=None #}
                 {% set key = (p.id, None, selected_sklad) %}
                 {% if key in stocks and stocks[key].note %}
                   <button type="button" class="btn btn-sm btn-outline-primary"
@@ -147,10 +151,13 @@
     <h4 class="h5">Boty</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        <thead>
+        {# ZMĚNA: Přidána třída "sticky-top" a "table-light" #}
+        <thead class="table-light sticky-top">
           <tr>
             <th>Název</th>
             {% for v in velikosti_boty %}<th>{{ v }}</th>{% endfor %}
+            {# ZMĚNA: Přidán sloupec pro celkový součet #}
+            <th>Celkem</th>
             <th>Poznámka</th>
           </tr>
         </thead>
@@ -166,6 +173,8 @@
                   {{ count or '' }}
                 </td>
               {% endfor %}
+              {# ZMĚNA: Přidána buňka se součtem hodnot ze slovníku p.sizes #}
+              <td class="fw-bold">{{ p.sizes.values() | sum }}</td>
               <td>
                 {% set key = (p.id, None, selected_sklad) %}
                 {% if key in stocks and stocks[key].note %}
@@ -190,14 +199,14 @@
     <h4 class="h5">Ostatní</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        <thead>
+        {# ZMĚNA: Přidána třída "sticky-top" a "table-light" #}
+        <thead class="table-light sticky-top">
           <tr><th>Název</th><th>Množství</th><th>Poznámka</th></tr>
         </thead>
         <tbody>
           {% for p in tabulka_ostatni %}
             <tr>
               <td>{{ p.name }}</td>
-              {# ZMĚNA: Použije se velikost 0 (nebo universal_size z backendu) místo None #}
               {% set count = p.sizes.get(0) %}
               <td
                 {% if count == 1 %}class="bg-success-subtle"
@@ -205,7 +214,6 @@
                 {{ count or '' }}
               </td>
               <td>
-                {# Logika pro poznámky zůstává, stále se váže na size=None #}
                 {% set key = (p.id, None, selected_sklad) %}
                 {% if key in stocks and stocks[key].note %}
                   <button type="button" class="btn btn-sm btn-outline-primary"
