@@ -52,10 +52,13 @@
     </select>
   </div>
 
+  {# ZMĚNA: Tento blok se zobrazí pouze pro kategorie, které mají velikosti #}
+  {% if vybrana_kategorie not in ['doplnky', 'ostatni'] %}
   <div class="mb-3">
     {{ form.size.label(class="form-label") }}
     {{ form.size(class="form-select") }}
   </div>
+  {% endif %}
 
   <div class="mb-3">
     {{ form.quantity.label(class="form-label") }}
