@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
+{# ZMĚNA: Přidán blok <style> pro spolehlivé ukotvení hlavičky #}
+<style>
+  .table-responsive thead th {
+    position: -webkit-sticky; /* Prohlížeče Safari */
+    position: sticky;
+    top: 0;
+    z-index: 10; /* Zajišťuje, že hlavička překryje obsah těla tabulky */
+  }
+</style>
+
 <h2 class="mb-3">Skladový systém – Šaty za hubičku</h2>
 
 {# ===== tlačítka nad dashboardem ===== #}
@@ -62,12 +72,11 @@
     <h4 class="h5">Šaty</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        {# ZMĚNA: Přidána třída "sticky-top" a "table-light" pro ukotvení a vzhled hlavičky #}
-        <thead class="table-light sticky-top">
+        {# ZMĚNA: Třída "sticky-top" byla odebrána, styl se řeší přes CSS výše. Ponechána jen třída pro vzhled. #}
+        <thead class="table-light">
           <tr>
             <th>Název</th><th>Barva</th><th>Řešení zad</th>
             {% for v in velikosti_saty %}<th>{{ v }}</th>{% endfor %}
-            {# ZMĚNA: Přidán sloupec pro celkový součet #}
             <th>Celkem</th>
             <th>Poznámka</th>
           </tr>
@@ -86,7 +95,6 @@
                   {{ count or '' }}
                 </td>
               {% endfor %}
-              {# ZMĚNA: Přidána buňka se součtem hodnot ze slovníku p.sizes #}
               <td class="fw-bold">{{ p.sizes.values() | sum }}</td>
               <td>
                 {% set key = (p.id, None, selected_sklad) %}
@@ -112,8 +120,7 @@
     <h4 class="h5">Doplňky</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        {# ZMĚNA: Přidána třída "sticky-top" a "table-light" #}
-        <thead class="table-light sticky-top">
+        <thead class="table-light">
           <tr><th>Název</th><th>Barva</th><th>Množství</th><th>Poznámka</th></tr>
         </thead>
         <tbody>
@@ -151,12 +158,10 @@
     <h4 class="h5">Boty</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        {# ZMĚNA: Přidána třída "sticky-top" a "table-light" #}
-        <thead class="table-light sticky-top">
+        <thead class="table-light">
           <tr>
             <th>Název</th>
             {% for v in velikosti_boty %}<th>{{ v }}</th>{% endfor %}
-            {# ZMĚNA: Přidán sloupec pro celkový součet #}
             <th>Celkem</th>
             <th>Poznámka</th>
           </tr>
@@ -173,7 +178,6 @@
                   {{ count or '' }}
                 </td>
               {% endfor %}
-              {# ZMĚNA: Přidána buňka se součtem hodnot ze slovníku p.sizes #}
               <td class="fw-bold">{{ p.sizes.values() | sum }}</td>
               <td>
                 {% set key = (p.id, None, selected_sklad) %}
@@ -199,8 +203,7 @@
     <h4 class="h5">Ostatní</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        {# ZMĚNA: Přidána třída "sticky-top" a "table-light" #}
-        <thead class="table-light sticky-top">
+        <thead class="table-light">
           <tr><th>Název</th><th>Množství</th><th>Poznámka</th></tr>
         </thead>
         <tbody>
