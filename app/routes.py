@@ -1419,7 +1419,8 @@ def export_inventory(sklad):
              products_by_category[p.category].append({
                 "name":  p.name,
                 "color": p.color,
-                "sizes": qtys
+                "sizes": qtys,
+                "back_solution": p.back_solution
             })
 
     html = render_template(
