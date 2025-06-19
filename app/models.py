@@ -57,6 +57,9 @@ class Stock(db.Model):
     quantity   = db.Column(db.Integer, default=0)
     note       = db.Column(db.Text, nullable=True)
 
+    # TOTO JE KLÍČOVÝ ŘÁDEK, KTERÝ PŘIDÁVÁ POJISTKU PROTI DUPLICITÁM
+    __table_args__ = (db.UniqueConstraint('product_id', 'sklad', 'size', name='_product_sklad_size_uc'),)
+
     # vztah na Product, potlačí SAWarning ohledně "product_vztah"
     product = db.relationship(
         "Product",
