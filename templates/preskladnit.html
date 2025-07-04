@@ -20,45 +20,47 @@
       </select>
     </div>
 
-    {# 2) Seznam produktů pro přidání, automaticky zahrnuje i 'ostatni' #}
+    {# 2) Seznam produktů pro přidání #}
     {% for kat, produkty in produkty_podle_kategorii.items() %}
       <h4 class="mt-4 text-capitalize">{{ kat }}</h4>
-      <table class="table table-bordered table-sm text-center align-middle">
-        <thead>
-          <tr>
-            <th>Název</th>
-            {% if kat != 'boty' %}<th>Barva</th>{% endif %}
-            {% if kat == 'saty' %}<th>Řešení zad</th>{% endif %}
-            {% for v in velikosti[kat] %}<th>{{ v if v else '-' }}</th>{% endfor %}
-            <th>Přidat</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in produkty %}
+      <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+        <table class="table table-bordered table-sm text-center align-middle">
+          <thead class="table-light sticky-top">
             <tr>
-              <td>{{ p.name }}</td>
-              {% if kat != 'boty' %}<td>{{ p.color or '-' }}</td>{% endif %}
-              {% if kat == 'saty' %}<td>{{ p.back_solution or '-' }}</td>{% endif %}
-              {% for v in velikosti[kat] %}
-                {% set count = p.velikosti[v] %}
-                <td class="
-                     {% if count == 0 %}bg-danger-subtle
-                     {% elif count == 1 %}bg-success-subtle
-                     {% else %}bg-success{% endif %}">
-                  {{ count }}
-                </td>
-              {% endfor %}
-              <td>
-                <button type="submit" name="add_product" value="{{ p.id }}"
-                        class="btn btn-sm btn-outline-success">➕</button>
-              </td>
+              <th>Název</th>
+              {% if kat != 'boty' %}<th>Barva</th>{% endif %}
+              {% if kat == 'saty' %}<th>Řešení zad</th>{% endif %}
+              {% for v in velikosti[kat] %}<th>{{ v if v != 0 else '-' }}</th>{% endfor %}
+              <th>Přidat</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for p in produkty %}
+              <tr>
+                <td>{{ p.name }}</td>
+                {% if kat != 'boty' %}<td>{{ p.color or '-' }}</td>{% endif %}
+                {% if kat == 'saty' %}<td>{{ p.back_solution or '-' }}</td>{% endif %}
+                {% for v in velikosti[kat] %}
+                  {% set count = p.velikosti[v] %}
+                  <td class="
+                       {% if count == 0 %}bg-danger-subtle
+                       {% elif count == 1 %}bg-success-subtle
+                       {% else %}bg-success{% endif %}">
+                    {{ count }}
+                  </td>
+                {% endfor %}
+                <td>
+                  <button type="submit" name="add_product" value="{{ p.id }}"
+                          class="btn btn-sm btn-outline-success">➕</button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% endfor %}
 
-    {# 3) Košík k přeskladnění, včetně 'ostatni' #}
+    {# 3) Košík k přeskladnění #}
     {% if kosik_saty or kosik_boty or kosik_doplnky or kosik_ostatni %}
       <h3 class="mt-5">Košík k přeskladnění</h3>
       {% for nadpis, kosik, kat in [
@@ -68,40 +70,42 @@
           ('Ostatní', kosik_ostatni, 'ostatni')] %}
         {% if kosik %}
           <h5 class="mt-4">{{ nadpis }}</h5>
-          <table class="table table-bordered table-sm text-center align-middle">
-            <thead>
-              <tr>
-                <th>Název</th>
-                {% if kat != 'boty' %}<th>Barva</th>{% endif %}
-                {% if kat == 'saty' %}<th>Řešení zad</th>{% endif %}
-                {% for v in velikosti[kat] %}<th>{{ v if v else '-' }}</th>{% endfor %}
-                <th>Odebrat</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for p in kosik %}
+          <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+            <table class="table table-bordered table-sm text-center align-middle">
+              <thead class="table-light sticky-top">
                 <tr>
-                  <td>{{ p.name }}</td>
-                  {% if kat != 'boty' %}<td>{{ p.color or '-' }}</td>{% endif %}
-                  {% if kat == 'saty' %}<td>{{ p.back_solution or '-' }}</td>{% endif %}
-                  {% for v in velikosti[kat] %}
-                    {% set qty = p.velikosti[v] %}
-                    <td>
-                      <input type="number" min="0"
-                             name="velikost_{{ p.id }}_{% if v is none %}{% else %}{{ v }}{% endif %}"
-                             value="{{ qty }}"
-                             class="form-control form-control-sm"
-                             style="width:70px;">
-                    </td>
-                  {% endfor %}
-                  <td>
-                    <button type="submit" name="remove_product" value="{{ p.id }}"
-                            class="btn btn-sm btn-outline-danger">✖️</button>
-                  </td>
+                  <th>Název</th>
+                  {% if kat != 'boty' %}<th>Barva</th>{% endif %}
+                  {% if kat == 'saty' %}<th>Řešení zad</th>{% endif %}
+                  {% for v in velikosti[kat] %}<th>{{ v if v != 0 else '-' }}</th>{% endfor %}
+                  <th>Odebrat</th>
                 </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {% for p in kosik %}
+                  <tr>
+                    <td>{{ p.name }}</td>
+                    {% if kat != 'boty' %}<td>{{ p.color or '-' }}</td>{% endif %}
+                    {% if kat == 'saty' %}<td>{{ p.back_solution or '-' }}</td>{% endif %}
+                    {% for v in velikosti[kat] %}
+                      {% set qty = p.velikosti[v] %}
+                      <td>
+                        <input type="number" min="0"
+                               name="velikost_{{ p.id }}_{% if v is none %}{% else %}{{ v }}{% endif %}"
+                               value="{{ qty }}"
+                               class="form-control form-control-sm"
+                               style="width:70px;">
+                      </td>
+                    {% endfor %}
+                    <td>
+                      <button type="submit" name="remove_product" value="{{ p.id }}"
+                              class="btn btn-sm btn-outline-danger">✖️</button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         {% endif %}
       {% endfor %}
 

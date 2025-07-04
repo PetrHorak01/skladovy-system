@@ -1152,14 +1152,19 @@ def preskladnit():
 
     produkty = Product.query.order_by(Product.name).all()
     produkty_podle_kategorii = {k: [] for k in velikosti.keys()}
+    
+    # --- OPTIMALIZACE ZDE ---
+    # 1. Načteme všechny skladové zásoby pro zdrojový sklad najednou
+    all_stock_for_sklad = Stock.query.filter_by(sklad=source_sklad).all()
+    # 2. Vytvoříme slovník pro rychlé vyhledávání
+    stock_map = {(s.product_id, s.size): s.quantity for s in all_stock_for_sklad}
 
     for p in produkty:
         qtys = {}
         for v in velikosti[p.category]:
-            st = Stock.query.filter_by(
-                product_id=p.id, sklad=source_sklad, size=v
-            ).first()
-            qtys[v] = st.quantity if st else 0
+            # 3. Místo dotazu do DB použijeme rychlé vyhledání
+            qtys[v] = stock_map.get((p.id, v), 0)
+            
         produkty_podle_kategorii[p.category].append({
             "id": p.id,
             "name": p.name,
@@ -1167,6 +1172,7 @@ def preskladnit():
             "back_solution": p.back_solution,
             "velikosti": qtys
         })
+    # --- KONEC OPTIMALIZACE ---
 
     normalized = []
     for it in session["kosik"]:
@@ -1467,6 +1473,7 @@ def inventura():
     }
 
     if request.method == "POST":
+        # POST logika zůstává beze změny
         if "save_inventura" in request.form:
             session["inventura_data"] = _parse_qty_form(request.form)
             session.modified = True
@@ -1479,15 +1486,17 @@ def inventura():
 
             inv = session["inventura_data"]
             diffs = []
+            
+            # --- OPTIMALIZACE ZDE (pro náhled) ---
+            all_stock_records = Stock.query.filter_by(sklad=sklad).all()
+            stock_map = {(s.product_id, s.size): s.quantity for s in all_stock_records}
+            
             for pid_str, sizes in inv.items():
                 pid = int(pid_str)
                 prod = Product.query.get(pid)
                 for size_str, new_qty in sizes.items():
                     size = int(size_str)
-                    st = Stock.query.filter_by(
-                        product_id=pid, sklad=sklad, size=size
-                    ).first()
-                    old_qty = st.quantity if st else 0
+                    old_qty = stock_map.get((pid, size), 0)
                     delta = new_qty - old_qty
                     
                     size_display = "-" if prod.category in ["doplnky", "ostatni"] else size
@@ -1543,8 +1552,15 @@ def inventura():
             flash("Inventura potvrzena a uložena.", "success")
             return redirect(url_for("inventura", sklad=sklad))
 
+    # --- OPTIMALIZACE ZDE (pro zobrazení formuláře) ---
     inv = session.get("inventura_data", {})
     produkty = Product.query.order_by(Product.name).all()
+    
+    # 1. Načteme všechny potřebné skladové zásoby najednou
+    all_stock_records = Stock.query.filter_by(sklad=sklad).all()
+    
+    # 2. Vytvoříme slovník pro rychlé vyhledávání
+    stock_map = {(s.product_id, s.size): s.quantity for s in all_stock_records}
 
     data_by_cat = {
         "saty": [], "boty": [], "doplnky": [], "ostatni": []
@@ -1559,10 +1575,8 @@ def inventura():
             "qtys":          {}
         }
         for v in velikosti[kat]:
-            st = Stock.query.filter_by(
-                product_id=p.id, sklad=sklad, size=v
-            ).first()
-            old_qty = st.quantity if st else 0
+            # 3. Místo dotazu do DB použijeme rychlé vyhledání ve slovníku
+            old_qty = stock_map.get((p.id, v), 0)
             new_qty = inv.get(str(p.id), {}).get(str(v), None)
             row["qtys"][v] = {"old": old_qty, "new": new_qty}
         data_by_cat[kat].append(row)
