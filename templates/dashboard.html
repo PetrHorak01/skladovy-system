@@ -254,19 +254,45 @@
 
 </div>
 
-{# Modal s poznámkami – beze změny #}
-{% for (pid, size, sklad), st in stocks.items() if sklad == selected_sklad %}
+{# Modal s poznámkami – ZMĚNA ZDE #}
+{# Generujeme modální okno pouze pro poznámky k celému produktu (kde size je None) #}
+{% for (pid, size, sklad), st in stocks.items() if size is none %}
   <div class="modal fade" id="noteModal{{ pid }}_none" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
       <form method="POST"
             action="{{ url_for('poznamka', product_id=pid, sklad=sklad) }}">
-        <input type="hidden" name="size" value="{{ size }}">
+        <input type="hidden" name="size" value="">
         <input type="hidden" name="tab"   value="{{ active_tab }}">
         <div class="modal-header">
-          <h5 class="modal-title">Poznámka – {{ st.product.name }}{% if size and size != 0 %} (vel. {{ size }}){% endif %}</h5>
+          <h5 class="modal-title">Poznámka – {{ st.product.name }}</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <textarea name="note" class="form-control" rows="4">{{ st.note or '' }}</textarea>
         </div>
-        <div class="modal-
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Uložit</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zavřít</button>
+        </div>
+      </form>
+    </div></div>
+  </div>
+{% endfor %}
+
+<script>
+  document.addEventListener('show.bs.modal', function(e) {
+    var btn   = e.relatedTarget;
+    var tab   = btn.getAttribute('data-tab');
+    var modal = e.target;
+    var input = modal.querySelector('input[name="tab"]');
+    if(input && tab) input.value = tab;
+  });
+  document.addEventListener("DOMContentLoaded", function() {
+    var hash = window.location.hash;
+    if (hash) {
+      var trigger = document.querySelector('a.nav-link[href="'+hash+'"]');
+      if (trigger) new bootstrap.Tab(trigger).show();
+    }
+  });
+</script>
+{% endblock %}
