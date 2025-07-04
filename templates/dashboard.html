@@ -62,7 +62,7 @@
     <h4 class="h5">Šaty</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        <thead class="table-light">
+        <thead class="table-light sticky-top">
           <tr>
             <th>Název</th><th>Barva</th><th>Řešení zad</th>
             {% for v in velikosti_saty %}<th>{{ v }}</th>{% endfor %}
@@ -72,15 +72,6 @@
         </thead>
         <tbody>
           {% for p in tabulka_saty %}
-            {# ZMĚNA: Vložení opakující se hlavičky po každém 10. řádku #}
-            {% if loop.index0 > 0 and loop.index0 % 10 == 0 %}
-            <tr class="table-light">
-                <th>Název</th><th>Barva</th><th>Řešení zad</th>
-                {% for v in velikosti_saty %}<th>{{ v }}</th>{% endfor %}
-                <th>Celkem</th>
-                <th>Poznámka</th>
-            </tr>
-            {% endif %}
             <tr>
               <td>{{ p.name }}</td>
               <td>{{ p.color or '-' }}</td>
@@ -109,13 +100,11 @@
             </tr>
           {% endfor %}
         </tbody>
-        {# ZMĚNA: Přidání patičky tabulky s celkovým součtem #}
         <tfoot>
             <tr class="table-light fw-bold">
-                {# Colspan se vypočítá jako 3 pevné sloupce + počet velikostí #}
                 <td colspan="{{ 3 + velikosti_saty|length }}" class="text-end">Celkem skladem</td>
                 <td>{{ saty_grand_total }}</td>
-                <td></td> {# prázdná buňka pod poznámkou #}
+                <td></td>
             </tr>
         </tfoot>
       </table>
@@ -127,7 +116,7 @@
     <h4 class="h5">Doplňky</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        <thead class="table-light">
+        <thead class="table-light sticky-top">
           <tr><th>Název</th><th>Barva</th><th>Množství</th><th>Poznámka</th></tr>
         </thead>
         <tbody>
@@ -172,7 +161,7 @@
     <h4 class="h5">Boty</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        <thead class="table-light">
+        <thead class="table-light sticky-top">
           <tr>
             <th>Název</th>
             {% for v in velikosti_boty %}<th>{{ v }}</th>{% endfor %}
@@ -182,14 +171,6 @@
         </thead>
         <tbody>
           {% for p in tabulka_boty %}
-            {% if loop.index0 > 0 and loop.index0 % 10 == 0 %}
-            <tr class="table-light">
-                <th>Název</th>
-                {% for v in velikosti_boty %}<th>{{ v }}</th>{% endfor %}
-                <th>Celkem</th>
-                <th>Poznámka</th>
-            </tr>
-            {% endif %}
             <tr>
               <td>{{ p.name }}</td>
               {% for v in velikosti_boty %}
@@ -232,7 +213,7 @@
     <h4 class="h5">Ostatní</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
-        <thead class="table-light">
+        <thead class="table-light sticky-top">
           <tr><th>Název</th><th>Množství</th><th>Poznámka</th></tr>
         </thead>
         <tbody>
