@@ -60,7 +60,7 @@
   {# --- ŠATY --- #}
   <div class="tab-pane fade {% if active_tab=='saty' %}show active{% endif %}" id="saty">
     <h4 class="h5">Šaty</h4>
-    <div class="table-responsive mb-4">
+    <div class="table-responsive mb-4" style="max-height: 70vh; overflow-y: auto;">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
         <thead class="table-light sticky-top">
           <tr>
@@ -114,7 +114,7 @@
   {# --- DOPLŇKY --- #}
   <div class="tab-pane fade {% if active_tab=='doplnky' %}show active{% endif %}" id="doplnky">
     <h4 class="h5">Doplňky</h4>
-    <div class="table-responsive mb-4">
+    <div class="table-responsive mb-4" style="max-height: 70vh; overflow-y: auto;">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
         <thead class="table-light sticky-top">
           <tr><th>Název</th><th>Barva</th><th>Množství</th><th>Poznámka</th></tr>
@@ -159,7 +159,7 @@
   {# --- BOTY --- #}
   <div class="tab-pane fade {% if active_tab=='boty' %}show active{% endif %}" id="boty">
     <h4 class="h5">Boty</h4>
-    <div class="table-responsive mb-4">
+    <div class="table-responsive mb-4" style="max-height: 70vh; overflow-y: auto;">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
         <thead class="table-light sticky-top">
           <tr>
@@ -211,7 +211,7 @@
   {# --- OSTATNÍ --- #}
   <div class="tab-pane fade {% if active_tab=='ostatni' %}show active{% endif %}" id="ostatni">
     <h4 class="h5">Ostatní</h4>
-    <div class="table-responsive mb-4">
+    <div class="table-responsive mb-4" style="max-height: 70vh; overflow-y: auto;">
       <table class="table table-bordered table-sm text-center align-middle mb-0">
         <thead class="table-light sticky-top">
           <tr><th>Název</th><th>Množství</th><th>Poznámka</th></tr>
@@ -269,29 +269,4 @@
         <div class="modal-body">
           <textarea name="note" class="form-control" rows="4">{{ st.note or '' }}</textarea>
         </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Uložit</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zavřít</button>
-        </div>
-      </form>
-    </div></div>
-  </div>
-{% endfor %}
-
-<script>
-  document.addEventListener('show.bs.modal', function(e) {
-    var btn   = e.relatedTarget;
-    var tab   = btn.getAttribute('data-tab');
-    var modal = e.target;
-    var input = modal.querySelector('input[name="tab"]');
-    if(input && tab) input.value = tab;
-  });
-  document.addEventListener("DOMContentLoaded", function() {
-    var hash = window.location.hash;
-    if (hash) {
-      var trigger = document.querySelector('a.nav-link[href="'+hash+'"]');
-      if (trigger) new bootstrap.Tab(trigger).show();
-    }
-  });
-</script>
-{% endblock %}
+        <div class="modal-
