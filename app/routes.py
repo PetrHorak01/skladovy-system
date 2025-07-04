@@ -118,26 +118,19 @@ def dashboard():
             base["sizes"][UNIVERSAL_SIZE] = qty_map.get(p.id, {}).get(UNIVERSAL_SIZE, 0)
             tabulka_ostatni.append(base)
 
-    stocks = {}
-    for p in produkty:
-        note = Stock.query.filter_by(
-            product_id=p.id, size=None, sklad=selected_sklad
-        ).first()
-        if note:
-            stocks[(p.id, None, selected_sklad)] = note
-        sizes = (
-            velikosti_saty if p.category == "saty"
-            else velikosti_boty if p.category == "boty"
-            else [UNIVERSAL_SIZE]
-        )
-        for v in sizes:
-            st = Stock.query.filter_by(
-                product_id=p.id, size=v, sklad=selected_sklad
-            ).first()
-            if st:
-                stocks[(p.id, v, selected_sklad)] = st
+    # --- OPTIMALIZACE ZAČÁTEK ---
+    # Nahrazení N+1 dotazů v cyklu jedním efektivním dotazem.
     
-    # ZMĚNA: Výpočet celkových součtů pro každou kategorii
+    # 1. Získáme všechny relevantní Stock objekty v jednom dotazu.
+    all_stock_records = Stock.query.filter(Stock.sklad == selected_sklad).all()
+
+    # 2. Zpracujeme je do slovníku v paměti pro snadný přístup v šabloně.
+    stocks = {
+        (stock.product_id, stock.size, stock.sklad): stock
+        for stock in all_stock_records
+    }
+    # --- OPTIMALIZACE KONEC ---
+    
     saty_grand_total = sum(sum(p['sizes'].values()) for p in tabulka_saty)
     boty_grand_total = sum(sum(p['sizes'].values()) for p in tabulka_boty)
     doplnky_grand_total = sum(p['sizes'].get(UNIVERSAL_SIZE, 0) for p in tabulka_doplnky)
@@ -157,7 +150,6 @@ def dashboard():
         tabulka_doplnky=tabulka_doplnky,
         tabulka_ostatni=tabulka_ostatni,
         stocks=stocks,
-        # ZMĚNA: Předání celkových součtů do šablony
         saty_grand_total=saty_grand_total,
         boty_grand_total=boty_grand_total,
         doplnky_grand_total=doplnky_grand_total,
