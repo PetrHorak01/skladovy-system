@@ -49,45 +49,47 @@
       ('ostatni','Ostatní')
   ] %}
     <h4>{{ label }}</h4>
-    <table class="table table-bordered table-sm text-center mb-4">
-      <thead class="table-light">
-        <tr>
-          <th>Název</th>
-          {% if kat in ['saty','doplnky'] %}<th>Barva</th>{% endif %}
-          {% if kat == 'saty' %}<th>Řešení zad</th>{% endif %}
-          {% for v in velikosti[kat] %}
-            <th>{{ v if v else '-' }}</th>
+    <div class="table-responsive mb-4" style="max-height: 70vh; overflow-y: auto;">
+      <table class="table table-bordered table-sm text-center mb-4">
+        <thead class="table-light sticky-top">
+          <tr>
+            <th>Název</th>
+            {% if kat in ['saty','doplnky'] %}<th>Barva</th>{% endif %}
+            {% if kat == 'saty' %}<th>Řešení zad</th>{% endif %}
+            {% for v in velikosti[kat] %}
+              <th>{{ v if v != 0 else '-' }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data_by_cat[kat] %}
+          <tr>
+            <td>{{ row.name }}</td>
+            {% if kat in ['saty','doplnky'] %}
+              <td>{{ row.color or '–' }}</td>
+            {% endif %}
+            {% if kat == 'saty' %}
+              <td>{{ row.back_solution or '–' }}</td>
+            {% endif %}
+            {% for v in velikosti[kat] %}
+              {% set cell = row.qtys[v] %}
+              {% set q = cell.new %}
+              <td class="{% if q is not none %}bg-success-subtle{% else %}bg-danger-subtle{% endif %}">
+                <input
+                  type="number"
+                  min="0"
+                  name="qty_{{ row.product_id }}_{{ v }}"
+                  value="{{ q if q is not none else '' }}"
+                  class="form-control form-control-sm"
+                  style="width:70px;"
+                  oninput="updateCellColor(this)">
+              </td>
+            {% endfor %}
+          </tr>
           {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in data_by_cat[kat] %}
-        <tr>
-          <td>{{ row.name }}</td>
-          {% if kat in ['saty','doplnky'] %}
-            <td>{{ row.color or '–' }}</td>
-          {% endif %}
-          {% if kat == 'saty' %}
-            <td>{{ row.back_solution or '–' }}</td>
-          {% endif %}
-          {% for v in velikosti[kat] %}
-            {% set cell = row.qtys[v] %}
-            {% set q = cell.new %}
-            <td class="{% if q is not none %}bg-success-subtle{% else %}bg-danger-subtle{% endif %}">
-              <input
-                type="number"
-                min="0"
-                name="qty_{{ row.product_id }}_{{ v }}"
-                value="{{ q if q is not none else '' }}"
-                class="form-control form-control-sm"
-                style="width:70px;"
-                oninput="updateCellColor(this)">
-            </td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
   {% endfor %}
 </form>
 {% endif %}
@@ -95,26 +97,28 @@
 {# ======= PREVIEW MODE ======= #}
 {% if mode == 'preview' %}
 <h3>Náhled rozdílů</h3>
-<table class="table table-bordered table-sm text-center mb-4">
-  <thead class="table-light">
-    <tr>
-      <th>Produkt</th><th>Velikost</th><th>Stará</th><th>Nová</th><th>Delta</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for d in diffs %}
-    <tr>
-      <td>{{ d.label }}</td>
-      <td>{{ d.size }}</td>
-      <td>{{ d.old }}</td>
-      <td>{{ d.new }}</td>
-      <td class="{% if d.delta<0 %}text-danger{% else %}text-success{% endif %}">
-        {{ d.delta }}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+  <table class="table table-bordered table-sm text-center mb-4">
+    <thead class="table-light sticky-top">
+      <tr>
+        <th>Produkt</th><th>Velikost</th><th>Stará</th><th>Nová</th><th>Delta</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in diffs %}
+      <tr>
+        <td>{{ d.label }}</td>
+        <td>{{ d.size }}</td>
+        <td>{{ d.old }}</td>
+        <td>{{ d.new }}</td>
+        <td class="{% if d.delta<0 %}text-danger{% else %}text-success{% endif %}">
+          {{ d.delta }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 <form method="post">
   <button name="confirm_inventura" class="btn btn-success">
     Potvrdit inventuru
