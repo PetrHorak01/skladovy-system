@@ -627,19 +627,21 @@ def poznamka(product_id, sklad):
     raw_sz = request.form.get("size", "")
     tab = request.form.get("tab", "saty")
 
-    try:
-        size = int(raw_sz)
-    except (ValueError, TypeError):
-        size = None
-        # U doplňků a ostatních, pokud přijde velikost 0, nechceme ji uložit jako poznámku
-        # pro celý produkt, ale pro daný stock. `size` bude `0`. Pokud přijde prázdný
-        # string (poznámka k produktu), bude `None`.
-        prod = Product.query.get(product_id)
-        if prod and prod.category in ["doplnky", "ostatni"] and raw_sz == str(UNIVERSAL_SIZE):
-             size = UNIVERSAL_SIZE
-        else:
-             size = None
-
+    # --- ZAČÁTEK OPRAVY ---
+    
+    # Jasné a přímé určení velikosti.
+    # Pokud je 'size' prázdný řetězec, jedná se o poznámku k celému produktu -> size = None.
+    # Jinak se pokusíme hodnotu převést na číslo.
+    size = None
+    if raw_sz != "":
+        try:
+            size = int(raw_sz)
+        except (ValueError, TypeError):
+            # Pokud přijde nečíselná a neprázdná hodnota, je to chyba
+            flash("Neplatná velikost v požadavku.", "danger")
+            return redirect(url_for("dashboard", sklad=sklad, tab=tab) + f"#{tab}")
+            
+    # --- KONEC OPRAVY ---
 
     stock = Stock.query.filter_by(
         product_id=product_id,
@@ -648,12 +650,20 @@ def poznamka(product_id, sklad):
     ).first()
 
     if not stock:
-        flash("Nelze uložit poznámku – záznam skladu neexistuje.", "warning")
-        return redirect(url_for("dashboard", sklad=sklad, tab=tab))
+        # Záznam v DB opravdu neexistuje. Zkusíme ho vytvořit.
+        # To řeší problém s chybějícími záznamy pro starší produkty.
+        stock = Stock(
+            product_id=product_id,
+            sklad=sklad,
+            size=size,
+            quantity=0  # Nově vytvořený záznam pro poznámku má 0 kusů
+        )
+        db.session.add(stock)
+        # Není třeba db.session.commit() hned, provede se níže.
 
     stock.note = note_text
-    db.session.commit()
 
+    # Záznam do historie provádíme vždy, když se změní poznámka
     history = History(
         user=current_user.username,
         sklad=sklad,
