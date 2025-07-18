@@ -119,12 +119,10 @@ def dashboard():
             tabulka_ostatni.append(base)
 
     # --- OPTIMALIZACE ZAČÁTEK ---
-    # Nahrazení N+1 dotazů v cyklu jedním efektivním dotazem.
-    
-    # 1. Získáme všechny relevantní Stock objekty v jednom dotazu.
+    # Získání všech relevantních Stock objektů v jednom dotazu
     all_stock_records = Stock.query.filter(Stock.sklad == selected_sklad).all()
 
-    # 2. Zpracujeme je do slovníku v paměti pro snadný přístup v šabloně.
+    # Zpracování do slovníku v paměti pro snadný přístup v šabloně
     stocks = {
         (stock.product_id, stock.size, stock.sklad): stock
         for stock in all_stock_records
@@ -135,6 +133,23 @@ def dashboard():
     boty_grand_total = sum(sum(p['sizes'].values()) for p in tabulka_boty)
     doplnky_grand_total = sum(p['sizes'].get(UNIVERSAL_SIZE, 0) for p in tabulka_doplnky)
     ostatni_grand_total = sum(p['sizes'].get(UNIVERSAL_SIZE, 0) for p in tabulka_ostatni)
+
+    # ===================== DIAGNOSTICKÝ KÓD START =====================
+    # Dočasně si vypíšeme všechny poznámky, které se načetly z databáze
+    debug_notes = []
+    for stock_item in all_stock_records:
+        if stock_item.note:
+            # Přidáme informaci o každé poznámce, kterou najdeme
+            debug_notes.append(
+                f"[Produkt ID: {stock_item.product_id}, Sklad: {stock_item.sklad}, Velikost: {stock_item.size}, Poznámka: '{stock_item.note}']"
+            )
+    
+    if debug_notes:
+        # Zobrazíme všechny nalezené poznámky ve flash zprávě nahoře na stránce
+        flash("DEBUG - Nalezené poznámky: " + " | ".join(debug_notes), "warning")
+    else:
+        flash("DEBUG - V databázi pro tento sklad nebyly nalezeny žádné poznámky.", "info")
+    # ====================== DIAGNOSTICKÝ KÓD KONEC ======================
 
     return render_template(
         "dashboard.html",
