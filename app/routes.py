@@ -15,7 +15,7 @@ from app.forms import (
     LoginForm, AddProductForm, StockForm,
     NaskladnitForm, VyskladnitForm, UserForm, InventuraForm
 )
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 from weasyprint import HTML
 from io import BytesIO
@@ -288,28 +288,55 @@ def historie():
     od_str = request.args.get("od")
     do_str = request.args.get("do")
 
+    # 1. Filtrace podle uživatele
     if user_filter and user_filter != "Všichni":
         query = query.filter_by(user=user_filter)
+    
+    # 2. Filtrace podle skladu
     if sklad_filter and sklad_filter != "Všechny":
         query = query.filter_by(sklad=sklad_filter)
-    if od_str:
-        od_date = datetime.strptime(od_str, "%d.%m.%Y")
-        query = query.filter(History.timestamp >= od_date)
-    if do_str:
-        do_date = datetime.strptime(do_str, "%d.%m.%Y")
-        query = query.filter(History.timestamp <= do_date)
 
+    # 3. Logika data "OD" (Změna zde)
+    if od_str:
+        # Pokud uživatel zadal datum, použijeme ho
+        try:
+            od_date = datetime.strptime(od_str, "%d.%m.%Y")
+            query = query.filter(History.timestamp >= od_date)
+        except ValueError:
+            pass # Ignorujeme chybný formát
+    else:
+        # Pokud uživatel datum NEZADAL, načteme jen posledních 60 dní (cca 2 měsíce)
+        dva_mesice_zpet = datetime.now() - timedelta(days=60)
+        # Nastavíme čas na začátek dne (00:00:00)
+        dva_mesice_zpet = dva_mesice_zpet.replace(hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(History.timestamp >= dva_mesice_zpet)
+
+    # 4. Logika data "DO"
+    if do_str:
+        try:
+            do_date = datetime.strptime(do_str, "%d.%m.%Y")
+            # Nastavíme čas na konec dne, abychom nepřišli o záznamy z toho dne
+            do_date = do_date.replace(hour=23, minute=59, second=59)
+            query = query.filter(History.timestamp <= do_date)
+        except ValueError:
+            pass
+
+    # Načtení záznamů
     zaznamy_raw = query.order_by(History.timestamp.desc()).all()
+    
+    # Získání produktů pro přiřazení jmen (optimalizace - cache)
     produkty_cache = {p.id: p for p in Product.query.all()}
+    
     zaznamy = []
     for h in zaznamy_raw:
         prod = produkty_cache.get(h.product_id)
         label = prod.variant_label if prod else "-"
+        
         # Zobrazování velikosti
         size_display = "-"
         if h.size is not None:
             if prod and prod.category in ["doplnky", "ostatni"]:
-                size_display = "-" # Pro doplňky/ostatní nezobrazujeme "velikost 0"
+                size_display = "-" 
             else:
                 size_display = str(h.size)
 
@@ -324,6 +351,8 @@ def historie():
             "note":      h.note or "-"
         })
 
+    # Pro dropdowny chceme STÁLE všechny možnosti, i ty z hluboké historie
+    # Proto používáme samostatný dotaz, ne ten vyfiltrovaný 'query'
     users = ["Všichni"] + sorted({h.user for h in History.query.distinct(History.user)})
     sklady = ["Všechny"] + sorted({h.sklad for h in History.query.distinct(History.sklad)})
 
