@@ -696,8 +696,7 @@ def prodeje():
     mesice = [
         (1, "Leden"), (2, "Únor"), (3, "Březen"), (4, "Duben"),
         (5, "Květen"), (6, "Červen"), (7, "Červenec"), (8, "Srpen"),
-        (9, "Září"), (10, "Říjen"), (11, "Listopad"), (12, "Prosinec"),
-        ("rocni_prehled", "Roční přehled")
+        (9, "Září"), (10, "Říjen"), (11, "Listopad"), (12, "Prosinec")
     ]
     nazvy_mesicu = {str(m[0]): m[1] for m in mesice}
     vybrany_nazev = nazvy_mesicu.get(str(mesic), "")
