@@ -1,7 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Roční přehled přesčasů – {{ rok }}</h2>
-<a href="{{ url_for('prescasy') }}" class="btn btn-secondary mb-3">Zpět na měsíční přehled</a>
+<a href="{{ url_for('prescasy', rok=rok) }}" class="btn btn-secondary mb-3">Zpět na měsíční přehled</a>
+
+<form method="get" class="mb-3 d-flex align-items-center gap-2">
+  <label for="rok">Vyber rok:</label>
+  <select name="rok" id="rok" onchange="this.form.submit()" class="form-select w-auto">
+    {% for r in dostupne_roky %}
+      <option value="{{ r }}" {% if r == rok %}selected{% endif %}>
+        {{ r }}
+      </option>
+    {% endfor %}
+  </select>
+</form>
 
 <table class="table table-bordered text-center align-middle">
   <thead>

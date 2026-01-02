@@ -686,8 +686,12 @@ def poznamka(product_id, sklad):
 @login_required
 def prodeje():
     aktualni_datum = datetime.now()
-    rok = aktualni_datum.year
+    # Zjistíme rok z URL, pokud není zadán, použijeme aktuální
+    vybrany_rok = request.args.get("rok", aktualni_datum.year, type=int)
     mesic = request.args.get("mesic")
+    
+    # Definice dostupných roků
+    dostupne_roky = [2025, 2026]
 
     mesice = [
         (1, "Leden"), (2, "Únor"), (3, "Březen"), (4, "Duben"),
@@ -703,14 +707,15 @@ def prodeje():
 
     data = defaultdict(lambda: {"zkousky": 0, "prodeje": 0})
 
+    # Filtrujeme podle vybraného roku (vybrany_rok) místo natvrdo zadaného (rok)
     if mesic == "rocni_prehled":
-        zaznamy = Sales.query.filter_by(year=rok).all()
+        zaznamy = Sales.query.filter_by(year=vybrany_rok).all()
         for z in zaznamy:
             data[z.user]["zkousky"] += z.tries
             data[z.user]["prodeje"] += z.sales
     else:
         mesic_int = int(mesic) if mesic else aktualni_datum.month
-        zaznamy = Sales.query.filter_by(year=rok, month=mesic_int).all()
+        zaznamy = Sales.query.filter_by(year=vybrany_rok, month=mesic_int).all()
         for z in zaznamy:
             data[z.user]["zkousky"] = z.tries
             data[z.user]["prodeje"] = z.sales
@@ -741,9 +746,10 @@ def prodeje():
         vybrany_mesic=mesic,
         vybrany_nazev_mesice=nazvy_mesicu.get(str(mesic), "Roční přehled"),
         data=data,
-        uzivatele=jmena_uzivatelu
+        uzivatele=jmena_uzivatelu,
+        vybrany_rok=vybrany_rok,      # Nová proměnná pro šablonu
+        dostupne_roky=dostupne_roky   # Nová proměnná pro šablonu
     )
-
 
 @app.route("/prodeje/zapsat", methods=["GET", "POST"])
 @login_required
@@ -827,7 +833,10 @@ def zapsat_prodej():
 @app.route("/prodeje/rocni")
 @login_required
 def prodeje_rocni():
-    rok = datetime.now().year
+    aktualni_datum = datetime.now()
+    # Získání roku z URL
+    vybrany_rok = request.args.get("rok", aktualni_datum.year, type=int)
+    dostupne_roky = [2025, 2026]
 
     uzivatele = (
         User.query
@@ -838,7 +847,8 @@ def prodeje_rocni():
     jmena_uzivatelu = [u.username for u in uzivatele]
 
     data = defaultdict(lambda: {"zkousky": 0, "prodeje": 0})
-    zaznamy = Sales.query.filter_by(year=rok).all()
+    # Filtrace dle vybrany_rok
+    zaznamy = Sales.query.filter_by(year=vybrany_rok).all()
     for z in zaznamy:
         data[z.user]["zkousky"] += z.tries
         data[z.user]["prodeje"] += z.sales
@@ -865,18 +875,21 @@ def prodeje_rocni():
 
     return render_template(
         "prodeje_rocni.html",
-        rok=rok,
+        rok=vybrany_rok,              # Posíláme vybraný rok
         data=data,
-        uzivatele=jmena_uzivatelu
+        uzivatele=jmena_uzivatelu,
+        dostupne_roky=dostupne_roky   # Posíláme seznam roků
     )
-
 
 @app.route("/prescasy")
 @login_required
 def prescasy():
     aktualni_datum = datetime.now()
-    rok = aktualni_datum.year
+    # Získání roku z URL
+    vybrany_rok = request.args.get("rok", aktualni_datum.year, type=int)
     mesic = request.args.get("mesic", aktualni_datum.month, type=int)
+    
+    dostupne_roky = [2025, 2026]
 
     mesice = [
         (1, "Leden"), (2, "Únor"), (3, "Březen"), (4, "Duben"),
@@ -890,7 +903,8 @@ def prescasy():
                           .order_by(User.username).all()
     jmena_uzivatelu = [u.username for u in uzivatele]
 
-    zaznamy = Overtime.query.filter_by(year=rok, month=mesic).all()
+    # Filtrace dle vybrany_rok
+    zaznamy = Overtime.query.filter_by(year=vybrany_rok, month=mesic).all()
     data = defaultdict(lambda: {"classic": 0, "deluxe": 0})
     for z in zaznamy:
         data[z.user]["classic"] = z.classic
@@ -910,7 +924,9 @@ def prescasy():
         vybrany_mesic=mesic,
         vybrany_nazev_mesice=vybrany_nazev_mesice,
         data=data,
-        uzivatele=jmena_uzivatelu
+        uzivatele=jmena_uzivatelu,
+        vybrany_rok=vybrany_rok,     # Nová proměnná
+        dostupne_roky=dostupne_roky  # Nová proměnná
     )
 
 
@@ -996,7 +1012,10 @@ def zapsat_prescasy():
 @app.route("/prescasy/rocni")
 @login_required
 def prescasy_rocni():
-    aktualni_rok = datetime.now().year
+    aktualni_datum = datetime.now()
+    # Získání roku z URL
+    vybrany_rok = request.args.get("rok", aktualni_datum.year, type=int)
+    dostupne_roky = [2025, 2026]
 
     uzivatele = (
         User.query
@@ -1008,7 +1027,8 @@ def prescasy_rocni():
 
     data = {}
     for jmeno in jmena_uzivatelu:
-        zaznamy = Overtime.query.filter_by(user=jmeno, year=aktualni_rok).all()
+        # Filtrace dle vybrany_rok
+        zaznamy = Overtime.query.filter_by(user=jmeno, year=vybrany_rok).all()
         classic = sum(z.classic or 0 for z in zaznamy)
         deluxe = sum(z.deluxe or 0 for z in zaznamy)
         data[jmeno] = {"classic": classic, "deluxe": deluxe}
@@ -1022,7 +1042,8 @@ def prescasy_rocni():
         "prescasy_rocni.html",
         data=data,
         uzivatele=jmena_uzivatelu,
-        rok=aktualni_rok
+        rok=vybrany_rok,            # Posíláme vybraný rok
+        dostupne_roky=dostupne_roky # Posíláme seznam roků
     )
 
 

@@ -1,14 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Přesčasy – {{ vybrany_nazev_mesice }}</h2>
+<h2>Přesčasy – {{ vybrany_nazev_mesice }} {{ vybrany_rok }}</h2>
 <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-3">Zpět na přehled</a>
 <a href="{{ url_for('zapsat_prescasy') }}" class="btn btn-primary mb-3">Zapsat přesčasy</a>
-<a href="{{ url_for('prescasy_rocni') }}" class="btn btn-success mb-3">Roční přehled</a>
+<a href="{{ url_for('prescasy_rocni', rok=vybrany_rok) }}" class="btn btn-success mb-3">Roční přehled</a>
 
 
-<form method="get" class="mb-3">
-  <label for="mesic" class="form-label">Vyber měsíc:</label>
-  <select name="mesic" id="mesic" class="form-select" onchange="this.form.submit()">
+<form method="get" class="mb-3 d-flex align-items-center gap-2">
+  <label for="rok">Rok:</label>
+  <select name="rok" id="rok" class="form-select w-auto" onchange="this.form.submit()">
+    {% for r in dostupne_roky %}
+      <option value="{{ r }}" {% if r == vybrany_rok %}selected{% endif %}>{{ r }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="mesic" class="ms-3">Měsíc:</label>
+  <select name="mesic" id="mesic" class="form-select w-auto" onchange="this.form.submit()">
     {% for val, nazev in mesice %}
       <option value="{{ val }}" {% if val == vybrany_mesic %}selected{% endif %}>{{ nazev }}</option>
     {% endfor %}
