@@ -265,17 +265,37 @@ def delete_product(product_id):
     produkt = Product.query.get_or_404(product_id)
     kategorie = produkt.category
 
+    # 1. KONTROLA: Množství na skladě
     zasoby = Stock.query.filter_by(product_id=product_id).all()
     if any(z.quantity > 0 for z in zasoby if z.size is not None):
-        flash("Produkt nelze smazat – na skladech není nulové množství.")
+        flash(f"Produkt {produkt.name} nelze smazat – na skladech není nulové množství.", "warning")
         return redirect(url_for("produkty", kategorie=kategorie))
 
-    # Smazání všech záznamů ze Stock, včetně záznamu pro poznámku
-    Stock.query.filter_by(product_id=product_id).delete()
-    
-    db.session.delete(produkt)
-    db.session.commit()
-    flash("Produkt byl smazán.")
+    # 2. KONTROLA: Aktivní přesuny (v tranzitu)
+    # Hledáme, zda je produkt v nějakém Transferu, který ještě nebyl potvrzen
+    aktivni_presun = db.session.query(Transfer).join(TransferItem).filter(
+        TransferItem.product_id == product_id,
+        Transfer.status == "v_tranzitu"
+    ).first()
+
+    if aktivni_presun:
+        flash(f"Produkt nelze smazat! Právě se nachází v aktivním přesunu č. {aktivni_presun.id} ({aktivni_presun.source_sklad} -> {aktivni_presun.target_sklad}). Nejprve přesun dokončete nebo stornujte.", "danger")
+        return redirect(url_for("produkty", kategorie=kategorie))
+
+    try:
+        # Pokud prošly kontroly, můžeme mazat vazby v archivech
+        # Mažeme historii a staré (již potvrzené) položky přesunů
+        Stock.query.filter_by(product_id=product_id).delete()
+        History.query.filter_by(product_id=product_id).delete()
+        TransferItem.query.filter_by(product_id=product_id).delete()
+        
+        db.session.delete(produkt)
+        db.session.commit()
+        flash(f"Produkt {produkt.name} byl úspěšně odstraněn ze systému.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Chyba při mazání: {str(e)}", "danger")
+
     return redirect(url_for("produkty", kategorie=kategorie))
 
 
