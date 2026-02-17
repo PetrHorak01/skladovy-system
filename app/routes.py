@@ -398,8 +398,12 @@ def naskladnit():
         vybrana_kategorie = "saty"
 
     form = NaskladnitForm()
+    
     if current_user.role == "admin":
         form.sklad.choices = [(s, s) for s in sklady]
+        # NOVINKA: Pokud má admin nastavený sklad, předvyplníme ho ve formuláři
+        if not form.sklad.data: 
+            form.sklad.data = current_user.sklad or "Praha"
     else:
         form.sklad.choices = [(current_user.sklad, current_user.sklad)]
         form.sklad.data = current_user.sklad
@@ -500,8 +504,12 @@ def vyskladnit():
         vybrana_kategorie = "saty"
 
     form = VyskladnitForm()
+    
     if current_user.role == "admin":
         form.sklad.choices = [(s, s) for s in sklady]
+        # NOVINKA: Pokud má admin nastavený sklad, předvyplníme ho ve formuláři
+        if not form.sklad.data: 
+            form.sklad.data = current_user.sklad or "Praha"
     else:
         form.sklad.choices = [(current_user.sklad, current_user.sklad)]
         form.sklad.data = current_user.sklad
@@ -602,10 +610,11 @@ def uzivatele():
             flash("Uživatel s tímto jménem již existuje.", "warning")
             return redirect(url_for("uzivatele"))
 
+        # ZMĚNA ZDE: Povolujeme sklad pro skladníky i adminy
         new_user = User(
             username=form.username.data,
             role=form.role.data,
-            sklad=(form.sklad.data if form.role.data == "skladnik" else None)
+            sklad=form.sklad.data if form.role.data in ["skladnik", "admin"] else None
         )
         new_user.set_password(form.password.data)
 
@@ -614,12 +623,7 @@ def uzivatele():
         flash("Uživatel vytvořen.", "success")
         return redirect(url_for("uzivatele"))
 
-    return render_template(
-        "uzivatele.html",
-        form=form,
-        users=users,
-        editing=None
-    )
+    return render_template("uzivatele.html", form=form, users=users, editing=None)
 
 
 @app.route("/uzivatele/edit/<int:user_id>", methods=["GET", "POST"])
@@ -634,19 +638,17 @@ def edit_user(user_id):
 
     if form.validate_on_submit():
         user.username = form.username.data
-        user.set_password(form.password.data) # Heslo je třeba znovu zahashovat
+        if form.password.data: # Oprava: Heslo měníme jen pokud je zadané
+            user.set_password(form.password.data)
         user.role = form.role.data
-        user.sklad = form.sklad.data if user.role == "skladnik" else None
+        # ZMĚNA ZDE: Povolujeme změnu skladu i pro admina
+        user.sklad = form.sklad.data if user.role in ["skladnik", "admin"] else None
+        
         db.session.commit()
         flash("Uživatel upraven.")
         return redirect(url_for("uzivatele"))
 
-    return render_template(
-        "uzivatele.html",
-        form=form,
-        users=User.query.order_by(User.username).all(),
-        editing=user.id
-    )
+    return render_template("uzivatele.html", form=form, users=User.query.order_by(User.username).all(), editing=user.id)
 
 
 @app.route("/uzivatele/delete/<int:user_id>", methods=["POST"])
