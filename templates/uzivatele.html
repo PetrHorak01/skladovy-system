@@ -1,66 +1,104 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Správa uživatelů</h2>
-<a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-3">Zpět na přehled</a>
+
+<div class="d-flex justify-content-between align-items-center mb-4 mt-2">
+  <h2 class="mb-0 fw-bold text-dark">👥 Správa uživatelů</h2>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">⬅️ Zpět na přehled</a>
+</div>
 
 <div class="row">
-  <!-- ======== Levá polovina: formulář ======== -->
-  <div class="col-md-4">
-    <h4>{{ 'Úprava uživatele' if editing else 'Nový uživatel' }}</h4>
-    <form method="POST" action="{% if editing %}{{ url_for('edit_user', user_id=editing) }}{% else %}{{ url_for('uzivatele') }}{% endif %}">
-      {{ form.hidden_tag() }}
-      <div class="mb-3">
-        {{ form.username.label(class="form-label") }}
-        {{ form.username(class="form-control") }}
+  <div class="col-lg-4 mb-4">
+    <div class="card shadow-sm border-0 position-sticky" style="top: 20px;">
+      <div class="card-header bg-dark text-white py-3">
+        <h5 class="mb-0 fw-bold fs-6">{{ '✏️ Úprava uživatele' if editing else '➕ Přidat nového uživatele' }}</h5>
       </div>
-      <div class="mb-3">
-        {{ form.password.label(class="form-label") }}
-        {{ form.password(class="form-control") }}
+      <div class="card-body bg-light p-4">
+        <form method="POST" action="{% if editing %}{{ url_for('edit_user', user_id=editing) }}{% else %}{{ url_for('uzivatele') }}{% endif %}">
+          {{ form.hidden_tag() }}
+          <div class="mb-3">
+            {{ form.username.label(class="form-label fw-bold text-muted small") }}
+            {{ form.username(class="form-control shadow-none border-secondary-subtle") }}
+          </div>
+          <div class="mb-3">
+            {{ form.password.label(class="form-label fw-bold text-muted small") }}
+            {{ form.password(class="form-control shadow-none border-secondary-subtle", placeholder="Nové heslo (nepovinné)" if editing else "Zadejte heslo") }}
+          </div>
+          <div class="mb-3">
+            {{ form.role.label(class="form-label fw-bold text-muted small") }}
+            {{ form.role(class="form-select shadow-none border-secondary-subtle") }}
+          </div>
+          <div class="mb-4">
+            {{ form.sklad.label(class="form-label fw-bold text-muted small") }}
+            {{ form.sklad(class="form-select shadow-none border-secondary-subtle") }}
+          </div>
+          
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary fw-bold shadow-sm">
+              {{ '💾 Uložit změny' if editing else '➕ Vytvořit uživatele' }}
+            </button>
+            {% if editing %}
+              <a href="{{ url_for('uzivatele') }}" class="btn btn-outline-secondary">Zrušit úpravu</a>
+            {% endif %}
+          </div>
+        </form>
       </div>
-      <div class="mb-3">
-        {{ form.role.label(class="form-label") }}
-        {{ form.role(class="form-select") }}
-      </div>
-      <div class="mb-3">
-        {{ form.sklad.label(class="form-label") }}
-        {{ form.sklad(class="form-select") }}
-      </div>
-      <button type="submit" class="btn btn-primary">
-        {{ 'Uložit změny' if editing else 'Vytvořit uživatele' }}
-      </button>
-      {% if editing %}
-        <a href="{{ url_for('uzivatele') }}" class="btn btn-secondary">Zrušit</a>
-      {% endif %}
-    </form>
+    </div>
   </div>
 
-  <!-- ======== Pravá polovina: seznam ======== -->
-  <div class="col-md-8">
-    <h4>Stávající uživatelé</h4>
-    <table class="table table-sm table-bordered">
-      <thead>
-        <tr><th>Jméno</th><th>Role</th><th>Sklad</th><th>Akce</th></tr>
-      </thead>
-      <tbody>
-        {% for u in users %}
-        <tr>
-          <td>{{ u.username }}</td>
-          <td>{{ u.role }}</td>
-          <td>{{ u.sklad or '-' }}</td>
-          <td>
-            <a href="{{ url_for('edit_user', user_id=u.id) }}"
-               class="btn btn-sm btn-outline-primary">Editovat</a>
-            <form method="POST"
-                  action="{{ url_for('delete_user', user_id=u.id) }}"
-                  style="display:inline"
-                  onsubmit="return confirm('Opravdu smazat {{ u.username }}?');">
-              <button type="submit" class="btn btn-sm btn-outline-danger">Smazat</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="col-lg-8">
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-bold text-secondary fs-6">Seznam stávajících uživatelů</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover table-bordered table-sm text-center align-middle mb-0">
+            <thead class="table-light shadow-sm">
+              <tr>
+                <th class="py-3 text-start px-4">Jméno</th>
+                <th class="py-3">Role</th>
+                <th class="py-3">Přiřazený sklad</th>
+                <th class="py-3">Akce</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in users %}
+              <tr>
+                <td class="text-start px-4 fw-medium">{{ u.username }}</td>
+                <td>
+                  {% if u.role == 'admin' %}
+                    <span class="badge bg-danger rounded-pill px-3">{{ u.role }}</span>
+                  {% elif u.role == 'Max' %}
+                    <span class="badge bg-warning text-dark rounded-pill px-3">{{ u.role }}</span>
+                  {% else %}
+                    <span class="badge bg-primary rounded-pill px-3">{{ u.role }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if u.sklad %}
+                    <span class="badge bg-light text-dark border px-3">{{ u.sklad }}</span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td class="py-2">
+                  <a href="{{ url_for('edit_user', user_id=u.id) }}"
+                     class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-medium">✏️ Editovat</a>
+                  <form method="POST"
+                        action="{{ url_for('delete_user', user_id=u.id) }}"
+                        style="display:inline"
+                        onsubmit="return confirm('Opravdu smazat uživatele {{ u.username }}?');">
+                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-medium ms-1">🗑️ Smazat</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
+
 {% endblock %}
