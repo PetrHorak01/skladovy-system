@@ -23,6 +23,12 @@
       {% endfor %}
     </select>
   </div>
+  
+  <div class="col-12 col-md">
+    <label for="produkt" class="form-label small">Hledat produkt</label>
+    <input type="text" name="produkt" id="produkt" class="form-control" placeholder="Začněte psát (např. Amanda)..." value="{{ produkt_filter }}">
+  </div>
+
   <div class="col-12 col-md-auto">
     <label for="od" class="form-label small">Od</label>
     <input type="text" name="od" id="od" class="form-control" placeholder="dd.mm.rrrr" value="{{ od }}">
@@ -37,8 +43,8 @@
 </form>
 
 <div class="table-responsive">
-  <table class="table table-bordered table-sm text-center align-middle mb-0">
-    <thead class="table-light">
+  <table class="table table-bordered table-hover table-sm text-center align-middle mb-0">
+    <thead class="table-light sticky-top">
       <tr>
         <th>Datum a čas</th>
         <th>Uživatel</th>
@@ -56,11 +62,17 @@
         <td class="small">{{ e.timestamp }}</td>
         <td class="small">{{ e.user }}</td>
         <td class="small">{{ e.sklad }}</td>
-        <td class="small text-start">{{ e.produkt }}</td>
+        <td class="small text-start fw-medium">{{ e.produkt }}</td>
         <td class="small">{{ e.size }}</td>
         <td class="small">{{ e.change }}</td>
-        <td class="small">{{ e.amount }}</td>
-        <td class="small text-start">{{ e.note }}</td>
+        <td class="small fw-bold {% if e.amount > 0 %}text-success{% elif e.amount < 0 %}text-danger{% endif %}">
+          {% if e.amount > 0 %}+{% endif %}{{ e.amount }}
+        </td>
+        <td class="small text-start text-muted">{{ e.note }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="8" class="py-4 text-muted">Pro toto vyhledávání nebyly nalezeny žádné záznamy.</td>
       </tr>
       {% endfor %}
     </tbody>
