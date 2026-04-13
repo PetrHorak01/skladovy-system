@@ -2,6 +2,26 @@
 {% extends "base.html" %}
 {% block content %}
 
+<style>
+  /* Vlastní styl pro záložky, aby se správně překreslovaly při kliknutí */
+  .custom-tab {
+    background-color: #fff;
+    color: #495057; /* Tmavší šedá pro neaktivní záložky */
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+  }
+  .custom-tab:hover {
+    background-color: #f8f9fa;
+    color: #212529;
+  }
+  /* Když je záložka aktivní, vnutíme jí modré pozadí a bílé písmo */
+  .nav-pills .nav-link.custom-tab.active {
+    background-color: #0d6efd !important;
+    color: #fff !important;
+    border-color: #0d6efd !important;
+  }
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-4 mt-2">
   <h2 class="mb-0 fw-bold text-dark">👗 Skladový systém <span class="text-muted fs-4 fw-normal">| Šaty za hubičku</span></h2>
   <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">🚪 Odhlásit</a>
@@ -97,16 +117,16 @@
 {# ===== ZÁLOŽKY (Tabs) ===== #}
 <ul class="nav nav-pills mb-3 gap-2" id="tabMenu">
   <li class="nav-item">
-    <a class="nav-link rounded-pill {% if active_tab=='saty' %}active{% else %}bg-white border{% endif %}" data-bs-toggle="tab" href="#saty">👗 Šaty</a>
+    <a class="nav-link rounded-pill border custom-tab px-4 {% if active_tab=='saty' %}active{% endif %}" data-bs-toggle="tab" href="#saty">👗 Šaty</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link rounded-pill {% if active_tab=='doplnky' %}active{% else %}bg-white border{% endif %}" data-bs-toggle="tab" href="#doplnky">💍 Doplňky</a>
+    <a class="nav-link rounded-pill border custom-tab px-4 {% if active_tab=='doplnky' %}active{% endif %}" data-bs-toggle="tab" href="#doplnky">🎀 Doplňky</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link rounded-pill {% if active_tab=='boty' %}active{% else %}bg-white border{% endif %}" data-bs-toggle="tab" href="#boty">👠 Boty</a>
+    <a class="nav-link rounded-pill border custom-tab px-4 {% if active_tab=='boty' %}active{% endif %}" data-bs-toggle="tab" href="#boty">👠 Boty</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link rounded-pill {% if active_tab=='ostatni' %}active{% else %}bg-white border{% endif %}" data-bs-toggle="tab" href="#ostatni">🛍️ Ostatní</a>
+    <a class="nav-link rounded-pill border custom-tab px-4 {% if active_tab=='ostatni' %}active{% endif %}" data-bs-toggle="tab" href="#ostatni">🛍️ Ostatní</a>
   </li>
 </ul>
 
