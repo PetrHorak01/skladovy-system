@@ -4,7 +4,7 @@
 <a href="{{ url_for('prescasy') }}" class="btn btn-secondary mb-3">Zpět</a>
 
 <form method="POST">
-  {% if current_user.role == 'admin' %}
+  {% if current_user.role in ['admin', 'Max'] %}
     <div class="mb-3">
       <label for="uzivatel" class="form-label">Uživatel</label>
       <select name="uzivatel" id="uzivatel" class="form-select" required>

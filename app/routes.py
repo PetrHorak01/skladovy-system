@@ -21,15 +21,9 @@ from weasyprint import HTML
 from io import BytesIO
 from sqlalchemy import func
 
-# Konstanta pro "univerzální" velikost u produktů bez specifické velikosti
 UNIVERSAL_SIZE = 0
 
 def _parse_qty_form(form, zero_empty=False):
-    """
-    Z request.form vezme všechny klíče začínající na 'qty_'
-    a vrátí dict ve tvaru {pid_str: {size_str: qty_int}}.
-    Pokud je zero_empty=True, bere prázdná pole jako 0.
-    """
     inv = {}
     for key, val in form.items():
         if not key.startswith("qty_"):
@@ -64,7 +58,6 @@ def login():
             return redirect(next_page or url_for("dashboard"))
         flash("Neplatné přihlašovací údaje", "danger")
     return render_template("login.html", form=form)
-
 
 @app.route("/dashboard", methods=["GET"])
 @login_required
@@ -126,7 +119,6 @@ def dashboard():
             tabulka_ostatni.append(base)
 
     all_stock_records = Stock.query.filter(Stock.sklad == selected_sklad).all()
-
     stocks = {
         (stock.product_id, stock.size, stock.sklad): stock
         for stock in all_stock_records
@@ -157,17 +149,15 @@ def dashboard():
         ostatni_grand_total=ostatni_grand_total
     )
 
-
 @app.route("/logout")
 def logout():
     logout_user()
     return redirect(url_for("login"))
 
-
 @app.route("/produkty", methods=["GET", "POST"])
 @login_required
 def produkty():
-    # ZMĚNA: Přístup má admin i Max
+    # MAX MÁ PŘÍSTUP
     if current_user.role not in ["admin", "Max"]:
         flash("Přístup odepřen.")
         return redirect(url_for("dashboard"))
@@ -192,23 +182,13 @@ def produkty():
             velikosti = list(range(32, 56, 2))
         elif vybrana_kategorie == "boty":
             velikosti = list(range(36, 43))
-        else:
+        else: 
             velikosti = [UNIVERSAL_SIZE]
 
         for sklad in ["Praha", "Brno", "Pardubice", "Ostrava"]:
             for size in velikosti:
-                db.session.add(Stock(
-                    product_id=produkt.id,
-                    sklad=sklad,
-                    size=size,
-                    quantity=0
-                ))
-            db.session.add(Stock(
-                product_id=produkt.id,
-                sklad=sklad,
-                size=None,
-                quantity=0
-            ))
+                db.session.add(Stock(product_id=produkt.id, sklad=sklad, size=size, quantity=0))
+            db.session.add(Stock(product_id=produkt.id, sklad=sklad, size=None, quantity=0))
 
         db.session.commit()
         flash("Produkt byl přidán.")
@@ -216,18 +196,13 @@ def produkty():
 
     produkty = Product.query.filter_by(category=vybrana_kategorie).order_by(Product.name).all()
     uprava = request.view_args.get("uprava", None)
-    return render_template(
-        "produkty.html",
-        form=form,
-        produkty=produkty,
-        vybrana_kategorie=vybrana_kategorie,
-        uprava=uprava
-    )
+    return render_template("produkty.html", form=form, produkty=produkty, vybrana_kategorie=vybrana_kategorie, uprava=uprava)
 
 
 @app.route("/produkty/edit/<int:product_id>", methods=["GET", "POST"])
 @login_required
 def edit_product(product_id):
+    # MAX MÁ PŘÍSTUP
     if current_user.role not in ["admin", "Max"]:
         flash("Přístup odepřen.")
         return redirect(url_for("dashboard"))
@@ -248,18 +223,12 @@ def edit_product(product_id):
     form.color.data = produkt.color
     form.back_solution.data = produkt.back_solution
     produkty = Product.query.filter_by(category=produkt.category).order_by(Product.name).all()
-    return render_template(
-        "produkty.html",
-        form=form,
-        produkty=produkty,
-        vybrana_kategorie=produkt.category,
-        uprava=produkt.id
-    )
-
+    return render_template("produkty.html", form=form, produkty=produkty, vybrana_kategorie=produkt.category, uprava=produkt.id)
 
 @app.route("/produkty/delete/<int:product_id>", methods=["POST"])
 @login_required
 def delete_product(product_id):
+    # MAX MÁ PŘÍSTUP
     if current_user.role not in ["admin", "Max"]:
         flash("Přístup odepřen.")
         return redirect(url_for("dashboard"))
@@ -278,14 +247,13 @@ def delete_product(product_id):
     ).first()
 
     if aktivni_presun:
-        flash(f"Produkt nelze smazat! Právě se nachází v aktivním přesunu č. {aktivni_presun.id} ({aktivni_presun.source_sklad} -> {aktivni_presun.target_sklad}). Nejprve přesun dokončete nebo stornujte.", "danger")
+        flash(f"Produkt nelze smazat! Právě se nachází v aktivním přesunu č. {aktivni_presun.id}. Nejprve přesun dokončete.", "danger")
         return redirect(url_for("produkty", kategorie=kategorie))
 
     try:
         Stock.query.filter_by(product_id=product_id).delete()
         History.query.filter_by(product_id=product_id).delete()
         TransferItem.query.filter_by(product_id=product_id).delete()
-        
         db.session.delete(produkt)
         db.session.commit()
         flash(f"Produkt {produkt.name} byl úspěšně odstraněn ze systému.", "success")
@@ -294,7 +262,6 @@ def delete_product(product_id):
         flash(f"Chyba při mazání: {str(e)}", "danger")
 
     return redirect(url_for("produkty", kategorie=kategorie))
-
 
 @app.route("/historie", methods=["GET", "POST"])
 @login_required
@@ -307,7 +274,6 @@ def historie():
 
     if user_filter and user_filter != "Všichni":
         query = query.filter_by(user=user_filter)
-    
     if sklad_filter and sklad_filter != "Všechny":
         query = query.filter_by(sklad=sklad_filter)
 
@@ -316,7 +282,7 @@ def historie():
             od_date = datetime.strptime(od_str, "%d.%m.%Y")
             query = query.filter(History.timestamp >= od_date)
         except ValueError:
-            pass
+            pass 
     else:
         dva_mesice_zpet = datetime.now() - timedelta(days=60)
         dva_mesice_zpet = dva_mesice_zpet.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -359,16 +325,7 @@ def historie():
     users = ["Všichni"] + sorted({h.user for h in History.query.distinct(History.user)})
     sklady = ["Všechny"] + sorted({h.sklad for h in History.query.distinct(History.sklad)})
 
-    return render_template(
-        "historie.html",
-        zaznamy=zaznamy,
-        users=users,
-        sklady=sklady,
-        selected_user=user_filter or "Všichni",
-        selected_sklad=sklad_filter or "Všechny",
-        od=od_str or "",
-        do=do_str or ""
-    )
+    return render_template("historie.html", zaznamy=zaznamy, users=users, sklady=sklady, selected_user=user_filter or "Všichni", selected_sklad=sklad_filter or "Všechny", od=od_str or "", do=do_str or "")
 
 
 @app.route("/naskladnit", methods=["GET", "POST"])
@@ -381,10 +338,11 @@ def naskladnit():
         vybrana_kategorie = "saty"
 
     form = NaskladnitForm()
-    # ZMĚNA: Max a admin si mohou vybírat sklady
+    
+    # MAX MÁ PŘÍSTUP K VÝBĚRU SKLADU
     if current_user.role in ["admin", "Max"]:
         form.sklad.choices = [(s, s) for s in sklady]
-        if not form.sklad.data:
+        if not form.sklad.data: 
             form.sklad.data = current_user.sklad or "Praha"
     else:
         form.sklad.choices = [(current_user.sklad, current_user.sklad)]
@@ -417,7 +375,6 @@ def naskladnit():
 
         raw_sz = form.size.data
         size = int(raw_sz) if raw_sz else None
-        
         if vybrana_kategorie in ["doplnky", "ostatni"]:
             size = UNIVERSAL_SIZE
 
@@ -437,22 +394,13 @@ def naskladnit():
             stock = Stock(product_id=prod.id, sklad=selected_sklad, size=size, quantity=qty)
             db.session.add(stock)
 
-        db.session.add(History(
-            user=current_user.username,
-            sklad=selected_sklad,
-            product_id=prod.id,
-            size=size,
-            change_type="naskladneni",
-            amount=qty,
-            timestamp=datetime.now()
-        ))
+        db.session.add(History(user=current_user.username, sklad=selected_sklad, product_id=prod.id, size=size, change_type="naskladneni", amount=qty, timestamp=datetime.now()))
         db.session.commit()
 
         flash(f"Naskladněno {qty} ks {prod.variant_label} do {selected_sklad}.", "success")
         return redirect(url_for("naskladnit", kategorie=vybrana_kategorie))
 
     return render_template("naskladnit.html", form=form, vybrana_kategorie=vybrana_kategorie, produkty_dict=produkty_dict)
-
 
 @app.route("/vyskladnit", methods=["GET", "POST"])
 @login_required
@@ -464,9 +412,11 @@ def vyskladnit():
         vybrana_kategorie = "saty"
 
     form = VyskladnitForm()
+    
+    # MAX MÁ PŘÍSTUP K VÝBĚRU SKLADU
     if current_user.role in ["admin", "Max"]:
         form.sklad.choices = [(s, s) for s in sklady]
-        if not form.sklad.data:
+        if not form.sklad.data: 
             form.sklad.data = current_user.sklad or "Praha"
     else:
         form.sklad.choices = [(current_user.sklad, current_user.sklad)]
@@ -499,7 +449,6 @@ def vyskladnit():
 
         raw_sz = form.size.data
         size = int(raw_sz) if raw_sz else None
-
         if vybrana_kategorie in ["doplnky", "ostatni"]:
             size = UNIVERSAL_SIZE
 
@@ -519,15 +468,7 @@ def vyskladnit():
             return redirect(url_for("vyskladnit", kategorie=vybrana_kategorie))
 
         stock.quantity -= qty
-        db.session.add(History(
-            user=current_user.username,
-            sklad=selected_sklad,
-            product_id=prod.id,
-            size=size,
-            change_type="vyskladneni",
-            amount=-qty,
-            timestamp=datetime.now()
-        ))
+        db.session.add(History(user=current_user.username, sklad=selected_sklad, product_id=prod.id, size=size, change_type="vyskladneni", amount=-qty, timestamp=datetime.now()))
         db.session.commit()
 
         flash(f"Vyskladněno {qty} ks {prod.variant_label} ze {selected_sklad}.", "success")
@@ -552,7 +493,6 @@ def uzivatele():
             flash("Uživatel s tímto jménem již existuje.", "warning")
             return redirect(url_for("uzivatele"))
 
-        # ZMĚNA: Přidán Max do pole povolených skladů
         new_user = User(
             username=form.username.data,
             role=form.role.data,
@@ -571,7 +511,6 @@ def uzivatele():
 @app.route("/uzivatele/edit/<int:user_id>", methods=["GET", "POST"])
 @login_required
 def edit_user(user_id):
-    # ZDE ZŮSTÁVÁ POUZE ADMIN
     if current_user.role != "admin":
         flash("Přístup odepřen.")
         return redirect(url_for("dashboard"))
@@ -596,13 +535,11 @@ def edit_user(user_id):
 @app.route("/uzivatele/delete/<int:user_id>", methods=["POST"])
 @login_required
 def delete_user(user_id):
-    # ZDE ZŮSTÁVÁ POUZE ADMIN
     if current_user.role != "admin":
         flash("Přístup odepřen.")
         return redirect(url_for("dashboard"))
 
     user = User.query.get_or_404(user_id)
-
     if user.username == current_user.username:
         flash("Nemůžete smazat sami sebe.")
         return redirect(url_for("uzivatele"))
@@ -627,7 +564,7 @@ def poznamka(product_id, sklad):
         except (ValueError, TypeError):
             flash("Neplatná velikost v požadavku.", "danger")
             return redirect(url_for("dashboard", sklad=sklad, tab=tab) + f"#{tab}")
-
+            
     stock = Stock.query.filter_by(product_id=product_id, sklad=sklad, size=size).first()
 
     if not stock:
@@ -659,7 +596,6 @@ def prodeje():
     aktualni_datum = datetime.now()
     vybrany_rok = request.args.get("rok", aktualni_datum.year, type=int)
     mesic = request.args.get("mesic")
-    
     dostupne_roky = [2025, 2026]
 
     mesice = [
@@ -695,16 +631,16 @@ def prodeje():
 
     celkem_zkousky = sum(data[j]["zkousky"] for j in jmena_uzivatelu)
     celkem_prodeje = sum(data[j]["prodeje"] for j in jmena_uzivatelu)
-    celkem_uspesnost = (
-        f"{(celkem_prodeje / celkem_zkousky * 100):.1f} %"
-        if celkem_zkousky > 0 else "-"
-    )
+    celkem_uspesnost = f"{(celkem_prodeje / celkem_zkousky * 100):.1f} %" if celkem_zkousky > 0 else "-"
 
     data["Celkem"] = {"zkousky": celkem_zkousky, "prodeje": celkem_prodeje, "uspesnost": celkem_uspesnost}
     jmena_uzivatelu.append("Celkem")
 
-    return render_template("prodeje.html", mesice=mesice, vybrany_mesic=mesic, vybrany_nazev_mesice=nazvy_mesicu.get(str(mesic), "Roční přehled"), data=data, uzivatele=jmena_uzivatelu, vybrany_rok=vybrany_rok, dostupne_roky=dostupne_roky)
-
+    return render_template(
+        "prodeje.html", mesice=mesice, vybrany_mesic=mesic, 
+        vybrany_nazev_mesice=nazvy_mesicu.get(str(mesic), "Roční přehled"), 
+        data=data, uzivatele=jmena_uzivatelu, vybrany_rok=vybrany_rok, dostupne_roky=dostupne_roky
+    )
 
 @app.route("/prodeje/zapsat", methods=["GET", "POST"])
 @login_required
@@ -729,6 +665,7 @@ def zapsat_prodej():
         rok = dnes.year
         mesic = dnes.month
 
+        # MAX MÁ PŘÍSTUP K VÝBĚRU UŽIVATELE
         if current_user.role in ["admin", "Max"]:
             if "uzivatel" in request.form:
                 username = request.form["uzivatel"]
@@ -843,6 +780,7 @@ def zapsat_prescasy():
             return redirect(url_for("prescasy"))
 
         username = current_user.username
+        # MAX MÁ PŘÍSTUP K VÝBĚRU UŽIVATELE
         if current_user.role in ["admin", "Max"] and "uzivatel" in request.form:
             username = request.form["uzivatel"]
 
@@ -850,6 +788,7 @@ def zapsat_prescasy():
         rok = dnes.year
         mesic = dnes.month
 
+        # MAX MÁ PŘÍSTUP K VÝBĚRU MĚSÍCE
         if current_user.role in ["admin", "Max"] and "mesic" in request.form:
             try:
                 mesic = int(request.form.get("mesic"))
@@ -1135,7 +1074,6 @@ def preskladneni_seznam():
 
     return render_template("preskladneni_seznam.html", transfers=transfers)
 
-
 @app.route("/preskladneni_archiv")
 @login_required
 def preskladneni_archiv():
@@ -1175,7 +1113,6 @@ def export_transfer(transfer_id):
     resp.headers["Content-Type"] = "application/pdf"
     resp.headers["Content-Disposition"] = f"attachment; filename=preskladneni_{transfer.id}.pdf"
     return resp
-
 
 @app.route("/export/inventory", defaults={"sklad": None})
 @app.route("/export/inventory/<sklad>")
@@ -1226,12 +1163,12 @@ def export_inventory(sklad):
 
     return send_file(buf, download_name=filename, mimetype="application/pdf", as_attachment=True)
 
-
 @app.route("/inventura", methods=["GET", "POST"])
 @login_required
 def inventura():
     sklady = ["Praha", "Brno", "Pardubice", "Ostrava"]
 
+    # MAX MÁ PŘÍSTUP K VÝBĚRU SKLADU
     if current_user.role in ["admin", "Max"]:
         sklad = request.values.get(
             "sklad",

@@ -17,7 +17,7 @@
      class="btn btn-outline-secondary">Export stavu</a>
 </div>
 
-{% if current_user.role == 'admin' %}
+{% if current_user.role in ['admin', 'Max'] %}
 <form method="get" class="mb-3">
   <label class="form-label me-2">Sklad</label>
   <select name="sklad" class="form-select d-inline-block w-auto"
