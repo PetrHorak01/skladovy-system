@@ -1,67 +1,65 @@
-{# templates/vyskladnit.html #}
 {% extends "base.html" %}
 {% block content %}
-<h2>Vyskladnit</h2>
-<a href="{{ url_for('dashboard') }}" class="btn btn-secondary mb-3">Zpět na přehled</a>
-
-<div class="mb-3">
-  <a href="{{ url_for('vyskladnit', kategorie='saty') }}"
-     class="btn btn-outline-primary {% if vybrana_kategorie == 'saty' %}active{% endif %}">
-    Šaty
-  </a>
-  <a href="{{ url_for('vyskladnit', kategorie='doplnky') }}"
-     class="btn btn-outline-primary {% if vybrana_kategorie == 'doplnky' %}active{% endif %}">
-    Doplňky
-  </a>
-  <a href="{{ url_for('vyskladnit', kategorie='boty') }}"
-     class="btn btn-outline-primary {% if vybrana_kategorie == 'boty' %}active{% endif %}">
-    Boty
-  </a>
-  <a href="{{ url_for('vyskladnit', kategorie='ostatni') }}"
-     class="btn btn-outline-primary {% if vybrana_kategorie == 'ostatni' %}active{% endif %}">
-    Ostatní
-  </a>
+<div class="d-flex justify-content-between align-items-center mb-4 mt-2">
+  <h2 class="mb-0 fw-bold text-dark">📤 Vyskladnit zboží</h2>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">⬅️ Zpět na přehled</a>
 </div>
 
-<form method="POST">
-  {{ form.hidden_tag() }}
-  <input type="hidden" name="kategorie" value="{{ vybrana_kategorie }}">
+<ul class="nav nav-pills mb-4 gap-2">
+  {% for cat, icon, label in [('saty', '👗', 'Šaty'), ('doplnky', '🎀', 'Doplňky'), ('boty', '👠', 'Boty'), ('ostatni', '🛍️', 'Ostatní')] %}
+    <li class="nav-item">
+      <a class="nav-link rounded-pill border px-4 fw-medium {% if vybrana_kategorie==cat %}active bg-danger text-white border-danger{% else %}bg-white text-secondary{% endif %}"
+         href="{{ url_for('vyskladnit', kategorie=cat) }}">
+        {{ icon }} {{ label }}
+      </a>
+    </li>
+  {% endfor %}
+</ul>
 
-  {% if current_user.role in ['admin', 'Max'] %}
-    <div class="mb-3">
-      {{ form.sklad.label(class="form-label") }}
-      {{ form.sklad(class="form-select") }}
-    </div>
-  {% endif %}
-
-  <div class="mb-3">
-    <label for="{{ form.product_id.id }}" class="form-label">{{ form.product_id.label.text }}</label>
-    <select name="{{ form.product_id.name }}"
-            id="{{ form.product_id.id }}"
-            class="form-select">
-      {% for val, _ in form.product_id.choices %}
-        {% set p = produkty_dict[val] %}
-        <option value="{{ val }}"
-                {% if form.product_id.data == val %}selected{% endif %}>
-          {{ p.variant_label }}
-        </option>
-      {% endfor %}
-    </select>
+<div class="card shadow-sm border-0 mb-4 col-lg-6">
+  <div class="card-header bg-danger text-white py-3">
+    <h5 class="mb-0 fw-bold fs-6">➖ Zadat výdej ze skladu</h5>
   </div>
+  <div class="card-body bg-light p-4">
+    <form method="POST">
+      {{ form.hidden_tag() }}
+      <input type="hidden" name="kategorie" value="{{ vybrana_kategorie }}">
 
-  {# ZMĚNA: Tento blok se zobrazí pouze pro kategorie, které mají velikosti #}
-  {% if vybrana_kategorie not in ['doplnky', 'ostatni'] %}
-  <div class="mb-3">
-    {{ form.size.label(class="form-label") }}
-    {{ form.size(class="form-select") }}
+      {% if current_user.role in ['admin', 'Max'] %}
+        <div class="mb-3">
+          {{ form.sklad.label(class="form-label fw-bold text-muted small") }}
+          {{ form.sklad(class="form-select shadow-none border-secondary-subtle") }}
+        </div>
+      {% endif %}
+
+      <div class="mb-3">
+        <label for="{{ form.product_id.id }}" class="form-label fw-bold text-muted small">{{ form.product_id.label.text }}</label>
+        <select name="{{ form.product_id.name }}" id="{{ form.product_id.id }}" class="form-select shadow-none border-secondary-subtle">
+          {% for val, _ in form.product_id.choices %}
+            {% set p = produkty_dict[val] %}
+            <option value="{{ val }}" {% if form.product_id.data == val %}selected{% endif %}>
+              {{ p.variant_label }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {% if vybrana_kategorie not in ['doplnky', 'ostatni'] %}
+      <div class="mb-3">
+        {{ form.size.label(class="form-label fw-bold text-muted small") }}
+        {{ form.size(class="form-select shadow-none border-secondary-subtle") }}
+      </div>
+      {% endif %}
+
+      <div class="mb-4">
+        {{ form.quantity.label(class="form-label fw-bold text-muted small") }}
+        {{ form.quantity(class="form-control shadow-none border-secondary-subtle fs-5 fw-bold text-danger", style="max-width: 150px;") }}
+      </div>
+
+      <div class="d-grid">
+        {{ form.submit(class="btn btn-danger fw-bold shadow-sm py-2") }}
+      </div>
+    </form>
   </div>
-  {% endif %}
-
-  <div class="mb-3">
-    {{ form.quantity.label(class="form-label") }}
-    {{ form.quantity(class="form-control") }}
-  </div>
-
-  {{ form.submit(class="btn btn-danger") }}
-</form>
+</div>
 {% endblock %}

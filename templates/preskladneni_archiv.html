@@ -1,45 +1,58 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Archiv přeskladnění</h2>
-<a href="{{ url_for('preskladnit') }}" class="btn btn-secondary mb-3">
-  Zpět na přeskladnění
-</a>
+<div class="d-flex justify-content-between align-items-center mb-4 mt-2">
+  <h2 class="mb-0 fw-bold text-dark">🗄️ Archiv přeskladnění</h2>
+  <a href="{{ url_for('preskladnit') }}" class="btn btn-outline-secondary btn-sm">⬅️ Zpět na přeskladnění</a>
+</div>
 
-<table class="table table-bordered table-sm text-center align-middle">
-  <thead class="table-light">
-    <tr>
-      <th>Č.</th>
-      <th>Odesláno</th>
-      <th>Potvrzeno</th>
-      <th>Ze skladu</th>
-      <th>Do skladu</th>
-      <th>Vytvořil</th>
-      <th>Potvrdil</th>
-      <th>Detail</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for t in archiv %}
-    <tr>
-      <td>{{ t.id }}</td>
-      <td>{{ t.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-      <td>
-        {% if t.confirmed_at %}
-          {{ t.confirmed_at.strftime('%d.%m.%Y %H:%M') }}
-        {% else %}
-          –
-        {% endif %}
-      </td>
-      <td>{{ t.source_sklad or 'Pardubice' }}</td>
-      <td>{{ t.target_sklad }}</td>
-      <td>{{ t.created_by }}</td>
-      <td>{{ t.confirmed_by or '–' }}</td>
-      <td>
-        <a href="{{ url_for('preskladneni_detail', transfer_id=t.id, z='archiv') }}"
-           class="btn btn-sm btn-outline-primary">Detail</a>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered table-sm text-center align-middle mb-0">
+        <thead class="table-light shadow-sm">
+          <tr>
+            <th class="py-3">Číslo</th>
+            <th class="py-3">Stav</th>
+            <th class="py-3">Ze skladu</th>
+            <th class="py-3">Do skladu</th>
+            <th class="py-3">Odesláno</th>
+            <th class="py-3">Potvrzeno</th>
+            <th class="py-3">Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in archiv %}
+          <tr>
+            <td class="fw-bold">#{{ t.id }}</td>
+            <td>
+              {% if t.confirmed_at %}
+                <span class="badge bg-success rounded-pill">Dokončeno</span>
+              {% else %}
+                <span class="badge bg-warning text-dark rounded-pill">V tranzitu</span>
+              {% endif %}
+            </td>
+            <td><span class="badge bg-light text-dark border">{{ t.source_sklad or 'Pardubice' }}</span></td>
+            <td><span class="badge bg-light text-dark border">{{ t.target_sklad }}</span></td>
+            <td class="text-muted small">
+              {{ t.created_at.strftime('%d.%m.%Y %H:%M') }}<br>
+              <span class="fw-medium text-dark">{{ t.created_by }}</span>
+            </td>
+            <td class="text-muted small">
+              {% if t.confirmed_at %}
+                {{ t.confirmed_at.strftime('%d.%m.%Y %H:%M') }}<br>
+                <span class="fw-medium text-dark">{{ t.confirmed_by or '–' }}</span>
+              {% else %}
+                –
+              {% endif %}
+            </td>
+            <td class="py-2">
+              <a href="{{ url_for('preskladneni_detail', transfer_id=t.id, z='archiv') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Detail</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

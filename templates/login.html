@@ -1,24 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
-  <h2>Přihlášení</h2>
-  <form method="post">
-    {{ form.hidden_tag() }}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6 col-lg-4 mt-5">
+    <div class="card shadow border-0 rounded-4">
+      <div class="card-header bg-dark text-white text-center py-4 rounded-top-4">
+        <h4 class="mb-0 fw-bold">👗 Šaty za hubičku</h4>
+        <small class="text-white-50">Přihlášení do systému</small>
+      </div>
+      <div class="card-body p-4 bg-light rounded-bottom-4">
+        <form method="post">
+          {{ form.hidden_tag() }}
 
-    <div class="mb-3">
-      {{ form.username.label(class="form-label") }}
-      {{ form.username(class="form-control") }}
+          <div class="mb-3">
+            {{ form.username.label(class="form-label fw-bold text-muted small") }}
+            {{ form.username(class="form-control shadow-none border-secondary-subtle", placeholder="Zadejte jméno") }}
+          </div>
+
+          <div class="mb-3">
+            {{ form.password.label(class="form-label fw-bold text-muted small") }}
+            {{ form.password(class="form-control shadow-none border-secondary-subtle", placeholder="Zadejte heslo") }}
+          </div>
+
+          <div class="form-check mb-4">
+            {{ form.remember_me(class="form-check-input shadow-none", id="rememberMe") }}
+            {{ form.remember_me.label(class="form-check-label text-muted small", for="rememberMe") }}
+          </div>
+
+          <div class="d-grid">
+            {{ form.submit(class="btn btn-primary fw-bold py-2 shadow-sm") }}
+          </div>
+        </form>
+      </div>
     </div>
-
-    <div class="mb-3">
-      {{ form.password.label(class="form-label") }}
-      {{ form.password(class="form-control") }}
-    </div>
-
-    <div class="form-check mb-3">
-      {{ form.remember_me(class="form-check-input", id="rememberMe") }}
-      {{ form.remember_me.label(class="form-check-label", for="rememberMe") }}
-    </div>
-
-    {{ form.submit(class="btn btn-primary") }}
-  </form>
+  </div>
+</div>
 {% endblock %}

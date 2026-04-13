@@ -1,34 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Seznam nevyřízených přeskladnění</h2>
+<div class="d-flex justify-content-between align-items-center mb-4 mt-2">
+  <h2 class="mb-0 fw-bold text-dark">📋 Nevyřízená přeskladnění</h2>
+  <a href="{{ url_for('preskladnit') }}" class="btn btn-outline-secondary btn-sm">⬅️ Zpět na přeskladnění</a>
+</div>
 
-<table class="table table-bordered table-sm text-center align-middle">
-  <thead>
-    <tr>
-      <th>Číslo</th>
-      <th>Cílový sklad</th>
-      <th>Vytvořil</th>
-      <th>Vytvořeno</th>
-      <th>Akce</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for t in transfers %}
-    <tr>
-      <td>{{ t.id }}</td>
-      <td>{{ t.target_sklad }}</td>
-      <td>{{ t.created_by }}</td>
-      <td>{{ t.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-      <td>
-        <a href="{{ url_for('preskladneni_detail', transfer_id=t.id, z='seznam') }}"
-           class="btn btn-sm btn-outline-primary">Detail</a>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-<a href="{{ url_for('preskladnit') }}" class="btn btn-outline-secondary mt-3">
-  Zpět na přeskladnění
-</a>
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered table-sm text-center align-middle mb-0">
+        <thead class="table-light shadow-sm">
+          <tr>
+            <th class="py-3">Číslo přesunu</th>
+            <th class="py-3">Cílový sklad</th>
+            <th class="py-3">Vytvořil</th>
+            <th class="py-3">Čas vytvoření</th>
+            <th class="py-3">Akce</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transfers %}
+          <tr>
+            <td class="fw-bold">#{{ t.id }}</td>
+            <td><span class="badge bg-primary fs-6 rounded-pill px-3">{{ t.target_sklad }}</span></td>
+            <td class="fw-medium">{{ t.created_by }}</td>
+            <td class="text-muted">{{ t.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td class="py-2">
+              <a href="{{ url_for('preskladneni_detail', transfer_id=t.id, z='seznam') }}" class="btn btn-sm btn-outline-primary rounded-pill px-4 fw-medium">Zobrazit a potvrdit</a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="py-5 text-muted fs-5">Aktuálně nejsou žádná nevyřízená přeskladnění. 🎉</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}
