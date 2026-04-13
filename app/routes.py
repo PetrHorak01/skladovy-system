@@ -24,10 +24,11 @@ from sqlalchemy import func
 # Konstanta pro "univerzální" velikost u produktů bez specifické velikosti
 UNIVERSAL_SIZE = 0
 
-def _parse_qty_form(form):
+def _parse_qty_form(form, zero_empty=False):
     """
     Z request.form vezme všechny klíče začínající na 'qty_'
-    a vrátí dict ve tvaru {pid_str: {size_str: qty_int}} pouze s vyplněnými poli.
+    a vrátí dict ve tvaru {pid_str: {size_str: qty_int}}.
+    Pokud je zero_empty=True, bere prázdná pole jako 0.
     """
     inv = {}
     for key, val in form.items():
@@ -35,12 +36,19 @@ def _parse_qty_form(form):
             continue
         # klíč má formát 'qty_<pid>_<size>'
         _, pid, size = key.split("_", 2)
-        if val.strip() == "":
-            continue
-        try:
-            qty = int(val)
-        except ValueError:
-            continue
+        
+        val = val.strip()
+        if val == "":
+            if zero_empty:
+                qty = 0  # Pokud je zaškrtnuto, zapíšeme nulu
+            else:
+                continue # Pokud není zaškrtnuto, ignorujeme (původní logika)
+        else:
+            try:
+                qty = int(val)
+            except ValueError:
+                continue
+                
         inv.setdefault(pid, {})[size] = qty
     return inv
 
@@ -1553,15 +1561,17 @@ def inventura():
     }
 
     if request.method == "POST":
-        # POST logika zůstává beze změny
+        # NOVÉ: Zjistíme, jestli uživatel zaškrtl políčko pro vynulování prázdných polí
+        zero_empty = request.form.get("zero_empty") == "on"
+
         if "save_inventura" in request.form:
-            session["inventura_data"] = _parse_qty_form(request.form)
+            session["inventura_data"] = _parse_qty_form(request.form, zero_empty)
             session.modified = True
             flash("Inventura dočasně uložena.", "success")
             return redirect(url_for("inventura", sklad=sklad))
 
         if "submit_inventura" in request.form:
-            session["inventura_data"] = _parse_qty_form(request.form)
+            session["inventura_data"] = _parse_qty_form(request.form, zero_empty)
             session.modified = True
 
             inv = session["inventura_data"]

@@ -32,12 +32,26 @@
 {# ======= EDIT MODE ======= #}
 {% if mode == 'edit' %}
 <form method="post">
+  
+  <div class="alert alert-warning mb-4 shadow-sm border-warning">
+    <div class="form-check form-switch fs-5">
+      <input class="form-check-input" type="checkbox" id="zeroEmptyCheck" name="zero_empty">
+      <label class="form-check-label fw-bold text-dark" for="zeroEmptyCheck">
+        ⚠️ Vynulovat nevyplněná pole (Kompletní inventura)
+      </label>
+    </div>
+    <p class="mb-0 mt-2 text-dark" style="font-size: 0.95rem;">
+      Pokud zapnete tento přepínač, <strong>všechna prázdná políčka v tabulce se zapíšou jako 0 kusů</strong> na skladě. 
+      Nechávejte vypnuté, pokud děláte jen částečnou úpravu (např. počítáte jen jeden regál).
+    </p>
+  </div>
+
   <div class="mb-4">
     <button name="save_inventura"    class="btn btn-primary me-2">
-      Uložit inventuru
+      Uložit dočasně
     </button>
     <button name="submit_inventura"  class="btn btn-success">
-      Odeslat inventuru
+      Pokračovat k náhledu
     </button>
   </div>
 
@@ -80,7 +94,7 @@
                   min="0"
                   name="qty_{{ row.product_id }}_{{ v }}"
                   value="{{ q if q is not none else '' }}"
-                  class="form-control form-control-sm"
+                  class="form-control form-control-sm mx-auto"
                   style="width:70px;"
                   oninput="updateCellColor(this)">
               </td>
@@ -97,31 +111,38 @@
 {# ======= PREVIEW MODE ======= #}
 {% if mode == 'preview' %}
 <h3>Náhled rozdílů</h3>
+<div class="alert alert-info">
+  Zkontrolujte pečlivě všechny změny. Pokud něco nesedí, vraťte se krok zpět.
+</div>
 <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
   <table class="table table-bordered table-sm text-center mb-4">
     <thead class="table-light sticky-top">
       <tr>
-        <th>Produkt</th><th>Velikost</th><th>Stará</th><th>Nová</th><th>Delta</th>
+        <th>Produkt</th><th>Velikost</th><th>Stará zásoba</th><th>Nová zásoba</th><th>Rozdíl</th>
       </tr>
     </thead>
     <tbody>
       {% for d in diffs %}
       <tr>
-        <td>{{ d.label }}</td>
+        <td class="text-start">{{ d.label }}</td>
         <td>{{ d.size }}</td>
         <td>{{ d.old }}</td>
-        <td>{{ d.new }}</td>
-        <td class="{% if d.delta<0 %}text-danger{% else %}text-success{% endif %}">
+        <td class="fw-bold">{{ d.new }}</td>
+        <td class="fw-bold {% if d.delta < 0 %}text-danger{% else %}text-success{% endif %}">
           {{ d.delta }}
         </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="5" class="text-muted py-3">Žádné změny na skladě.</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 <form method="post">
-  <button name="confirm_inventura" class="btn btn-success">
-    Potvrdit inventuru
+  <button name="confirm_inventura" class="btn btn-success btn-lg">
+    Potvrdit a zapsat inventuru do systému
   </button>
 </form>
 {% endif %}
