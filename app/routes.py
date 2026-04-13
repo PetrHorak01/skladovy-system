@@ -271,16 +271,14 @@ def historie():
     sklad_filter = request.args.get("sklad")
     od_str = request.args.get("od")
     do_str = request.args.get("do")
-    
-    # NOVÉ: Načtení filtru produktu
     produkt_filter = request.args.get("produkt", "").strip()
 
+    # Filtry
     if user_filter and user_filter != "Všichni":
         query = query.filter_by(user=user_filter)
     if sklad_filter and sklad_filter != "Všechny":
         query = query.filter_by(sklad=sklad_filter)
 
-    # NOVÉ: Propojení s tabulkou produktů a hledání podle názvu (i částečného)
     if produkt_filter:
         query = query.join(Product, History.product_id == Product.id).filter(
             Product.name.ilike(f"%{produkt_filter}%")
@@ -305,7 +303,16 @@ def historie():
         except ValueError:
             pass
 
-    zaznamy_raw = query.order_by(History.timestamp.desc()).all()
+    # === STRÁNKOVÁNÍ (Pagination) ===
+    page = request.args.get('page', 1, type=int) # Vezme číslo stránky z URL (výchozí 1)
+    per_page = 50  # Načte maximálně 50 záznamů najednou
+    
+    # Použijeme .paginate() místo .all()
+    pagination = query.order_by(History.timestamp.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    zaznamy_raw = pagination.items # Toto je těch 50 konkrétních záznamů
+
     produkty_cache = {p.id: p for p in Product.query.all()}
     
     zaznamy = []
@@ -331,20 +338,21 @@ def historie():
             "note":      h.note or "-"
         })
 
-    # Filtrujeme prázdná jména/sklady, kdyby se v historii objevily z dřívějška
+    # Tyhle hodnoty pro roletky sbíráme odděleně, nezávisle na stránkování
     users = ["Všichni"] + sorted({h.user for h in History.query.distinct(History.user) if h.user})
     sklady = ["Všechny"] + sorted({h.sklad for h in History.query.distinct(History.sklad) if h.sklad})
 
     return render_template(
-        "historie.html", 
-        zaznamy=zaznamy, 
-        users=users, 
-        sklady=sklady, 
-        selected_user=user_filter or "Všichni", 
-        selected_sklad=sklad_filter or "Všechny", 
-        od=od_str or "", 
+        "historie.html",
+        zaznamy=zaznamy,
+        pagination=pagination,       # Nová proměnná pro stránkování (tlačítka dole)
+        users=users,
+        sklady=sklady,
+        selected_user=user_filter or "Všichni",
+        selected_sklad=sklad_filter or "Všechny",
+        od=od_str or "",
         do=do_str or "",
-        produkt_filter=produkt_filter # NOVÉ: Pošleme to zpět do šablony, aby hledané slovo zůstalo zobrazené
+        produkt_filter=produkt_filter
     )
 
 

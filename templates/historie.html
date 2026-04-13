@@ -1,81 +1,117 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="mb-3">Historie změn</h2>
-
-<div class="d-flex flex-wrap gap-2 mb-3">
-  <a href="{{ url_for('dashboard') }}" class="btn btn-secondary flex-shrink-0">Zpět na přehled</a>
+<div class="d-flex justify-content-between align-items-center mb-4 mt-2">
+  <h2 class="mb-0 fw-bold text-dark">🕒 Historie změn</h2>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">⬅️ Zpět na přehled</a>
 </div>
 
-<form method="get" class="row gx-2 gy-2 align-items-end mb-4">
-  <div class="col-12 col-md-auto">
-    <label for="user" class="form-label small">Uživatel</label>
-    <select name="user" id="user" class="form-select">
-      {% for u in users %}
-        <option value="{{ u }}" {% if u == selected_user %}selected{% endif %}>{{ u }}</option>
-      {% endfor %}
-    </select>
+{# ===== FILTRAČNÍ KARTA ===== #}
+<div class="card shadow-sm border-0 mb-4 bg-white">
+  <div class="card-body p-3">
+    <form method="get" class="row gx-3 gy-2 align-items-end">
+      <div class="col-12 col-md-auto">
+        <label for="user" class="form-label small text-muted fw-bold mb-1">👤 Uživatel</label>
+        <select name="user" id="user" class="form-select form-select-sm">
+          {% for u in users %}
+            <option value="{{ u }}" {% if u == selected_user %}selected{% endif %}>{{ u }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-auto">
+        <label for="sklad" class="form-label small text-muted fw-bold mb-1">📍 Sklad</label>
+        <select name="sklad" id="sklad" class="form-select form-select-sm">
+          {% for s in sklady %}
+            <option value="{{ s }}" {% if s == selected_sklad %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md">
+        <label for="produkt" class="form-label small text-muted fw-bold mb-1">🔍 Hledat produkt</label>
+        <input type="text" name="produkt" id="produkt" class="form-control form-control-sm" placeholder="Název..." value="{{ produkt_filter }}">
+      </div>
+      <div class="col-6 col-md-auto">
+        <label for="od" class="form-label small text-muted fw-bold mb-1">📅 Od</label>
+        <input type="text" name="od" id="od" class="form-control form-control-sm" placeholder="dd.mm.rrrr" value="{{ od }}">
+      </div>
+      <div class="col-6 col-md-auto">
+        <label for="do" class="form-label small text-muted fw-bold mb-1">📅 Do</label>
+        <input type="text" name="do" id="do" class="form-control form-control-sm" placeholder="dd.mm.rrrr" value="{{ do }}">
+      </div>
+      <div class="col-12 col-md-auto">
+        <button type="submit" class="btn btn-primary btn-sm w-100 px-4">Filtrovat</button>
+      </div>
+    </form>
   </div>
-  <div class="col-12 col-md-auto">
-    <label for="sklad" class="form-label small">Sklad</label>
-    <select name="sklad" id="sklad" class="form-select">
-      {% for s in sklady %}
-        <option value="{{ s }}" {% if s == selected_sklad %}selected{% endif %}>{{ s }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  
-  <div class="col-12 col-md">
-    <label for="produkt" class="form-label small">Hledat produkt</label>
-    <input type="text" name="produkt" id="produkt" class="form-control" placeholder="Začněte psát (např. Amanda)..." value="{{ produkt_filter }}">
-  </div>
+</div>
 
-  <div class="col-12 col-md-auto">
-    <label for="od" class="form-label small">Od</label>
-    <input type="text" name="od" id="od" class="form-control" placeholder="dd.mm.rrrr" value="{{ od }}">
+{# ===== TABULKA HISTORIE ===== #}
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered table-sm text-center align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="py-2">Datum a čas</th>
+            <th class="py-2">Uživatel</th>
+            <th class="py-2">Sklad</th>
+            <th class="py-2 text-start px-3">Produkt</th>
+            <th class="py-2">Vel.</th>
+            <th class="py-2">Změna</th>
+            <th class="py-2">Množství</th>
+            <th class="py-2 text-start">Poznámka</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in zaznamy %}
+          <tr>
+            <td class="small text-muted">{{ e.timestamp }}</td>
+            <td class="small fw-medium">{{ e.user }}</td>
+            <td class="small">{{ e.sklad }}</td>
+            <td class="small text-start px-3">{{ e.produkt }}</td>
+            <td class="small"><span class="badge bg-light text-dark">{{ e.size }}</span></td>
+            <td class="small text-uppercase" style="font-size: 0.75rem;">{{ e.change }}</td>
+            <td class="small fw-bold {% if e.amount > 0 %}text-success{% elif e.amount < 0 %}text-danger{% endif %}">
+              {% if e.amount > 0 %}+{% endif %}{{ e.amount }}
+            </td>
+            <td class="small text-start text-muted italic">{{ e.note }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
-  <div class="col-12 col-md-auto">
-    <label for="do" class="form-label small">Do</label>
-    <input type="text" name="do" id="do" class="form-control" placeholder="dd.mm.rrrr" value="{{ do }}">
-  </div>
-  <div class="col-12 col-md-auto">
-    <button type="submit" class="btn btn-primary w-100">Filtrovat</button>
-  </div>
-</form>
+</div>
 
-<div class="table-responsive">
-  <table class="table table-bordered table-hover table-sm text-center align-middle mb-0">
-    <thead class="table-light sticky-top">
-      <tr>
-        <th>Datum a čas</th>
-        <th>Uživatel</th>
-        <th>Sklad</th>
-        <th>Produkt</th>
-        <th>Velikost</th>
-        <th>Typ změny</th>
-        <th>Množství</th>
-        <th>Poznámka</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for e in zaznamy %}
-      <tr>
-        <td class="small">{{ e.timestamp }}</td>
-        <td class="small">{{ e.user }}</td>
-        <td class="small">{{ e.sklad }}</td>
-        <td class="small text-start fw-medium">{{ e.produkt }}</td>
-        <td class="small">{{ e.size }}</td>
-        <td class="small">{{ e.change }}</td>
-        <td class="small fw-bold {% if e.amount > 0 %}text-success{% elif e.amount < 0 %}text-danger{% endif %}">
-          {% if e.amount > 0 %}+{% endif %}{{ e.amount }}
-        </td>
-        <td class="small text-start text-muted">{{ e.note }}</td>
-      </tr>
+{# ===== OVLÁDÁNÍ STRÁNEK (Pagination) ===== #}
+{% if pagination.pages > 1 %}
+<nav aria-label="Page navigation">
+  <ul class="pagination pagination-sm justify-content-center gap-1">
+    {% if pagination.has_prev %}
+      <li class="page-item">
+        <a class="page-link rounded-circle" href="{{ url_for('historie', page=pagination.prev_num, user=selected_user, sklad=selected_sklad, produkt=produkt_filter, od=od, do=do) }}">«</a>
+      </li>
+    {% endif %}
+
+    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+      {% if page_num %}
+        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+          <a class="page-link rounded-circle" href="{{ url_for('historie', page=page_num, user=selected_user, sklad=selected_sklad, produkt=produkt_filter, od=od, do=do) }}">{{ page_num }}</a>
+        </li>
       {% else %}
-      <tr>
-        <td colspan="8" class="py-4 text-muted">Pro toto vyhledávání nebyly nalezeny žádné záznamy.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+        <li class="page-item disabled"><span class="page-link border-0">...</span></li>
+      {% endif %}
+    {% endfor %}
+
+    {% if pagination.has_next %}
+      <li class="page-item">
+        <a class="page-link rounded-circle" href="{{ url_for('historie', page=pagination.next_num, user=selected_user, sklad=selected_sklad, produkt=produkt_filter, od=od, do=do) }}">»</a>
+      </li>
+    {% endif %}
+  </ul>
+</nav>
+<div class="text-center text-muted small mt-2">
+  Stránka {{ pagination.page }} z {{ pagination.pages }}
 </div>
+{% endif %}
+
 {% endblock %}
