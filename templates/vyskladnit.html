@@ -27,7 +27,7 @@
   {{ form.hidden_tag() }}
   <input type="hidden" name="kategorie" value="{{ vybrana_kategorie }}">
 
-  {% if current_user.role == 'admin' %}
+  {% if current_user.role in ['admin', 'Max'] %}
     <div class="mb-3">
       {{ form.sklad.label(class="form-label") }}
       {{ form.sklad(class="form-select") }}
