@@ -32,7 +32,8 @@ class StockForm(FlaskForm):
 class UserForm(FlaskForm):
     username = StringField('Uživatelské jméno', validators=[DataRequired()])
     password = PasswordField('Heslo', validators=[DataRequired()])
-    role = SelectField('Role', choices=[('admin', 'Admin'), ('skladnik', 'Skladník')], validators=[DataRequired()])
+    # PŘIDÁNA ROLE 'Max' DO VÝBĚRU:
+    role = SelectField('Role', choices=[('admin', 'Admin'), ('skladnik', 'Skladník'), ('Max', 'Max')], validators=[DataRequired()])
     sklad = SelectField('Sklad (pro skladníka)', choices=[
         ('Praha', 'Praha'),
         ('Brno', 'Brno'),
