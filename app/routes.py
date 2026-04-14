@@ -1399,14 +1399,6 @@ def inventura():
 
     return render_template("inventura.html", mode="edit", sklad=sklad, sklady=sklady, velikosti=velikosti, data_by_cat=data_by_cat)
     
-    
-
-from flask import render_template, request, redirect, url_for, flash
-from flask_login import login_required, current_user
-from app import app, db
-from app.models import Product, Stock, History, Transfer, TransferItem
-from datetime import datetime, timedelta
-import math
 
 @app.route("/distribuce", methods=["GET", "POST"])
 @login_required
@@ -1415,57 +1407,125 @@ def distribuce():
         flash("Nemáte oprávnění k přístupu do tohoto modulu.", "danger")
         return redirect(url_for('dashboard'))
 
-    # --- FILTRY ---
+    # --- 1. FILTRY ---
     kategorie = request.args.get('kategorie', 'saty')
-    dny = int(request.args.get('dny', 60))
+    # Nové intervaly: 7, 14, 30 dní
+    dny = int(request.args.get('dny', 14)) 
     datum_od = datetime.now() - timedelta(days=dny)
 
-    # --- DATA PRO VÝPOČET ---
+    # --- 2. ZPRACOVÁNÍ POST (Potvrzení vybraných skladů) ---
+    if request.method == "POST":
+        # Zjistíme, které sklady chce uživatel vytvořit
+        target_warehouses = request.form.getlist('finalize_warehouses')
+        
+        if not target_warehouses:
+            flash("Nebyl vybrán žádný cílový sklad pro vytvoření přesunu.", "warning")
+            return redirect(url_for('distribuce', kategorie=kategorie, dny=dny))
+
+        transfers_to_create = {target: [] for target in target_warehouses}
+
+        for key, value in request.form.items():
+            # Filtrujeme pouze vstupy pro vybrané sklady
+            target_match = None
+            if key.startswith("praha_") and "Praha" in target_warehouses:
+                target_match = "Praha"
+            elif key.startswith("brno_") and "Brno" in target_warehouses:
+                target_match = "Brno"
+            
+            if target_match and int(value or 0) > 0:
+                parts = key.split("_")
+                p_id = int(parts[1])
+                size = int(parts[2])
+                qty = int(value)
+                
+                transfers_to_create[target_match].append({
+                    'product_id': p_id, 'size': size, 'qty': qty
+                })
+
+        # Reálné vytvoření Transferů
+        created_any = False
+        for target, items in transfers_to_create.items():
+            if items:
+                created_any = True
+                new_transfer = Transfer(
+                    source_sklad="Pardubice",
+                    target_sklad=target,
+                    status="v_tranzitu",
+                    created_by=current_user.username,
+                    created_at=datetime.now()
+                )
+                db.session.add(new_transfer)
+                db.session.flush()
+
+                for item in items:
+                    ti = TransferItem(
+                        transfer_id=new_transfer.id,
+                        product_id=item['product_id'],
+                        size=item['size'],
+                        quantity=item['qty']
+                    )
+                    db.session.add(ti)
+
+                    # Odečtení z Pce
+                    stock_pce = Stock.query.filter_by(
+                        product_id=item['product_id'], sklad="Pardubice", size=item['size']
+                    ).first()
+                    if stock_pce:
+                        stock_pce.quantity -= item['qty']
+                        h = History(
+                            product_id=item['product_id'],
+                            sklad="Pardubice",
+                            user=current_user.username,
+                            change_type="PRESKLADNENI_VYSKLAD",
+                            amount=-item['qty'],
+                            size=item['size'],
+                            timestamp=datetime.now()
+                        )
+                        db.session.add(h)
+
+        if created_any:
+            db.session.commit()
+            flash(f"Přeskladnění pro vybrané sklady ({', '.join(target_warehouses)}) byla vytvořena.", "success")
+            return redirect(url_for('preskladneni_seznam'))
+        else:
+            flash("Nebyla zadána žádná množství k přesunu.", "info")
+            return redirect(url_for('distribuce', kategorie=kategorie, dny=dny))
+
+    # --- 3. LOGIKA VÝPOČTU NÁVRHU (GET) ---
     produkty = Product.query.filter_by(category=kategorie).order_by(Product.name).all()
-    sklady = ["Pardubice", "Praha", "Brno"]
-    velikosti_map = {
-        "saty": list(range(32, 56, 2)),
-        "boty": list(range(36, 43)),
-        "doplnky": [0],
-        "ostatni": [0]
-    }
+    velikosti_map = {"saty": list(range(32, 56, 2)), "boty": list(range(36, 43)), "doplnky": [0], "ostatni": [0]}
     velikosti = velikosti_map.get(kategorie, [0])
 
-    # 1. Načtení prodejů (Vyskladnění) za období
+    # Historie (začíná na "vyskladn")
     prodeje_raw = History.query.filter(
         History.timestamp >= datum_od,
-        History.change_type == "vyskladnit" # Ignorujeme přeskladnění
+        History.change_type.ilike("vyskladn%")
     ).all()
 
-    sales_stats = {} # (product_id, size, sklad) -> count
+    sales_stats = {}
     for h in prodeje_raw:
         key = (h.product_id, h.size, h.sklad)
         sales_stats[key] = sales_stats.get(key, 0) + abs(h.amount)
 
-    # 2. Načtení aktuálních zásob
     stocks_raw = Stock.query.all()
-    stock_map = {} # (product_id, size, sklad) -> qty
-    for s in stocks_raw:
-        stock_map[(s.product_id, s.size, s.sklad)] = s.quantity
+    stock_map = {(s.product_id, s.size, s.sklad): s.quantity for s in stocks_raw}
 
-    # --- VÝPOČET NÁVRHU ---
+    def custom_round(val):
+        if val <= 0: return 0
+        if val < 1.0: return 1 # Speciální pravidlo uživatele
+        return int(val + 0.5) if (val - int(val)) >= 0.5 else int(val)
+
     navrh_data = []
     for p in produkty:
         for v in velikosti:
             pce_stock = stock_map.get((p.id, v, "Pardubice"), 0)
             praha_stock = stock_map.get((p.id, v, "Praha"), 0)
             brno_stock = stock_map.get((p.id, v, "Brno"), 0)
-
             pce_sales = sales_stats.get((p.id, v, "Pardubice"), 0)
             praha_sales = sales_stats.get((p.id, v, "Praha"), 0)
             brno_sales = sales_stats.get((p.id, v, "Brno"), 0)
 
-            # Aktivní prodejní místa (kde prodej > 0)
-            active_sales = {"Pardubice": pce_sales, "Praha": praha_sales, "Brno": brno_sales}
-            total_sales = sum(active_sales.values())
-
-            # Celková zásoba k rozdělení (Pce + aktivní pobočky)
-            # Pobočky s 0 prodejem do rozdělení nepočítáme
+            total_sales = pce_sales + praha_sales + brno_sales
             total_available = pce_stock
             if praha_sales > 0: total_available += praha_stock
             if brno_sales > 0: total_available += brno_stock
@@ -1474,43 +1534,24 @@ def distribuce():
             navrh_brno = 0
 
             if total_sales > 0 and total_available > 0:
-                def custom_round(val):
-                    if val <= 0: return 0
-                    if val < 1: return 1 # Jakékoliv číslo > 0 se počítá jako 1
-                    # Standardní zaokrouhlování pro hodnoty >= 1
-                    return int(val + 0.5) if (val - int(val)) >= 0.5 else int(val)
-
-                # Cílový stav = (Podíl prodejů) * Celková zásoba
                 if praha_sales > 0:
-                    target_praha = (praha_sales / total_sales) * total_available
-                    navrh_praha = max(0, custom_round(target_praha) - praha_stock)
-                
+                    share = (praha_sales / total_sales) * total_available
+                    navrh_praha = max(0, custom_round(share) - praha_stock)
                 if brno_sales > 0:
-                    target_brno = (brno_sales / total_sales) * total_available
-                    navrh_brno = max(0, custom_round(target_brno) - brno_stock)
+                    share = (brno_sales / total_sales) * total_available
+                    navrh_brno = max(0, custom_round(share) - brno_stock)
 
-                # Kontrola, abychom z Pce neposlali víc než tam je
-                while (navrh_praha + navrh_brno) > pce_stock and (navrh_praha > 0 or navrh_brno > 0):
+                while (navrh_praha + navrh_brno) > pce_stock:
                     if navrh_praha >= navrh_brno and navrh_praha > 0: navrh_praha -= 1
                     elif navrh_brno > 0: navrh_brno -= 1
+                    else: break
 
             if pce_stock > 0 or navrh_praha > 0 or navrh_brno > 0:
                 navrh_data.append({
-                    'product': p,
-                    'size': v,
+                    'product': p, 'size': v,
                     'pce_stock': pce_stock, 'pce_sales': pce_sales,
                     'praha_stock': praha_stock, 'praha_sales': praha_sales, 'navrh_praha': navrh_praha,
                     'brno_stock': brno_stock, 'brno_sales': brno_sales, 'navrh_brno': navrh_brno
                 })
 
-    # --- ZPRACOVÁNÍ POSTU (Vytvoření přesunů) ---
-    if request.method == "POST":
-        # Logika pro vytvoření Transferů na základě odeslaného formuláře
-        # (Zde se vytvoří Transfer pro Prahu a Brno se status 'v_tranzitu')
-        flash("Přeskladnění byla úspěšně vytvořena na základě návrhu.", "success")
-        return redirect(url_for('preskladneni_seznam'))
-
-    return render_template("distribuce.html", 
-                           data=navrh_data, 
-                           kategorie=kategorie, 
-                           dny=dny)
+    return render_template("distribuce.html", data=navrh_data, kategorie=kategorie, dny=dny)
