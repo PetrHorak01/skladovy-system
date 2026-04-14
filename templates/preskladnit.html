@@ -23,10 +23,10 @@
     </div>
   </div>
 
-  {# 2) Seznam produktů pro přidání #}
   <div class="row">
-    <div class="col-lg-7">
-      <h5 class="fw-bold text-secondary mb-3">📦 Dostupné zboží ({{ source_sklad }})</h5>
+    {# 2) Seznam produktů pro přidání (ZÚŽENO A BEZ VELIKOSTÍ) #}
+    <div class="col-lg-4">
+      <h5 class="fw-bold text-secondary mb-3">📦 Dostupné zboží</h5>
       {% for kat, produkty in produkty_podle_kategorii.items() %}
         <div class="card shadow-sm border-0 mb-3">
           <div class="card-header bg-dark text-white py-2">
@@ -39,8 +39,7 @@
                   <tr>
                     <th class="py-2 text-start px-3">Název</th>
                     {% if kat != 'boty' %}<th class="py-2">Barva</th>{% endif %}
-                    {% if kat == 'saty' %}<th class="py-2">Řešení zad</th>{% endif %}
-                    {% for v in velikosti[kat] %}<th class="py-2 text-muted">{{ v if v != 0 else '-' }}</th>{% endfor %}
+                    {% if kat == 'saty' %}<th class="py-2">Záda</th>{% endif %}
                     <th class="py-2">Akce</th>
                   </tr>
                 </thead>
@@ -48,14 +47,8 @@
                   {% for p in produkty %}
                     <tr>
                       <td class="text-start px-3 fw-medium">{{ p.name }}</td>
-                      {% if kat != 'boty' %}<td class="text-muted">{{ p.color or '-' }}</td>{% endif %}
-                      {% if kat == 'saty' %}<td class="text-muted">{{ p.back_solution or '-' }}</td>{% endif %}
-                      {% for v in velikosti[kat] %}
-                        {% set count = p.velikosti[v] %}
-                        <td class="{% if count == 0 %}bg-light text-muted{% elif count == 1 %}bg-success-subtle fw-bold{% else %}bg-success text-white fw-bold{% endif %}">
-                          {{ count }}
-                        </td>
-                      {% endfor %}
+                      {% if kat != 'boty' %}<td class="text-muted small">{{ p.color or '-' }}</td>{% endif %}
+                      {% if kat == 'saty' %}<td class="text-muted small">{{ p.back_solution or '-' }}</td>{% endif %}
                       <td>
                         <button type="submit" name="add_product" value="{{ p.id }}" class="btn btn-sm btn-outline-success rounded-pill px-3">Přidat</button>
                       </td>
@@ -69,8 +62,8 @@
       {% endfor %}
     </div>
 
-    {# 3) Košík k přeskladnění #}
-    <div class="col-lg-5">
+    {# 3) Košík k přeskladnění (ROZŠÍŘENO PRO LEPŠÍ ZOBRAZENÍ VELIKOSTÍ) #}
+    <div class="col-lg-8">
       <div class="card shadow border-primary mb-4 position-sticky" style="top: 20px;">
         <div class="card-header bg-primary text-white py-3">
           <h5 class="mb-0 fw-bold">🛒 Připraveno k odeslání</h5>
@@ -86,7 +79,7 @@
                     <thead class="table-light">
                       <tr>
                         <th class="text-start px-2">Název</th>
-                        {% for v in velikosti[kat] %}<th>{{ v if v != 0 else 'Ks' }}</th>{% endfor %}
+                        {% for v in velikosti[kat] %}<th class="text-muted">{{ v if v != 0 else 'Ks' }}</th>{% endfor %}
                         <th></th>
                       </tr>
                     </thead>
