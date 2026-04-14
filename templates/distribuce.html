@@ -55,9 +55,18 @@
           <tbody>
             {% for item in data %}
             <tr>
-              <td class="text-start px-3 py-2 fw-medium">
-                {{ item.product.name }} 
-                <span class="badge bg-light text-dark border ms-1">{{ item.size if item.size != 0 else 'Uni' }}</span>
+              <td class="text-start px-3 py-2">
+                <span class="fw-bold text-dark">{{ item.product.name }}</span>
+                
+                {% if item.product.color %}
+                  <span class="text-muted small ms-1">{{ item.product.color }}</span>
+                {% endif %}
+                
+                {% if item.product.back_solution %}
+                  <span class="text-muted small ms-1">({{ item.product.back_solution }})</span>
+                {% endif %}
+
+                <span class="badge bg-light text-dark border ms-2">{{ item.size if item.size != 0 else 'Uni' }}</span>
               </td>
               <td class="bg-secondary-subtle fw-bold text-dark">{{ item.pce_stock }}</td>
               <td class="small text-muted">{{ item.pce_sales }}</td>
