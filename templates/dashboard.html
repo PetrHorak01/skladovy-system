@@ -68,6 +68,7 @@
           <a href="{{ url_for('prescasy') }}" class="btn btn-outline-secondary">⏱️ Přesčasy</a>
           <a href="{{ url_for('historie') }}" class="btn btn-outline-dark">🕒 Historie</a>
           <a href="{{ url_for('export_inventory', sklad=selected_sklad) }}" class="btn btn-outline-success">📊 Export PDF</a>
+		  <a href="{{ url_for('export_inventory_csv', sklad=selected_sklad) }}" class="btn btn-outline-success">📗 Export Excel (CSV)</a>
         </div>
       </div>
     </div>

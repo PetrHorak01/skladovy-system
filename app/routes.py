@@ -1191,6 +1191,55 @@ def export_inventory(sklad):
 
     return send_file(buf, download_name=filename, mimetype="application/pdf", as_attachment=True)
 
+import csv
+from io import StringIO
+
+@app.route("/export/inventory/csv/<sklad>")
+@login_required
+def export_inventory_csv(sklad):
+    if current_user.role not in ["admin", "Max"] and current_user.sklad != sklad:
+        flash("Nemáte oprávnění k exportu tohoto skladu.", "danger")
+        return redirect(url_for("dashboard"))
+
+    # Příprava dat (podobně jako u PDF exportu)
+    velikosti = {
+        "saty":    list(range(32, 56, 2)),
+        "boty":    list(range(36, 43)),
+        "doplnky": [0],
+        "ostatni": [0]
+    }
+    
+    produkty = Product.query.order_by(Product.name).all()
+    
+    # Vytvoření CSV v paměti
+    si = StringIO()
+    cw = csv.writer(si, delimiter=';') # Středník je pro český Excel nejlepší
+    
+    # Hlavička tabulky
+    cw.writerow(['Kategorie', 'Název', 'Barva', 'Záda', 'Velikost', 'Množství'])
+    
+    for p in produkty:
+        for v in velikosti[p.category]:
+            st = Stock.query.filter_by(product_id=p.id, sklad=sklad, size=v).first()
+            qty = st.quantity if st else 0
+            
+            # Zapíšeme řádek jen pokud je množství nenulové (nepovinné, ale přehlednější)
+            if qty > 0:
+                cw.writerow([
+                    p.category, 
+                    p.name, 
+                    p.color or '-', 
+                    p.back_solution or '-', 
+                    v if v != 0 else 'Uni', 
+                    qty
+                ])
+
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=inventura_{sklad}.csv"
+    output.headers["Content-type"] = "text/csv; charset=utf-16" # Podpora českých znaků
+    return output
+
+
 @app.route("/inventura", methods=["GET", "POST"])
 @login_required
 def inventura():
