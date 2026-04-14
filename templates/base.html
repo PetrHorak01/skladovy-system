@@ -14,9 +14,9 @@
       type="image/png">
 
 </head>
+</head>
 <body class="bg-light">
-  <div class="container mt-4">
-    <div id="flash-messages-container" style="position: sticky; top: 20px; z-index: 1050;">
+  <div class="container-fluid px-4 mt-4"> <div id="flash-messages-container" style="position: sticky; top: 20px; z-index: 1050;">
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           {% for category, message in messages %}
