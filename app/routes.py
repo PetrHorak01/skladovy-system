@@ -1194,6 +1194,9 @@ def export_inventory(sklad):
 import csv
 from io import StringIO
 
+import csv
+from io import StringIO
+
 @app.route("/export/inventory/csv/<sklad>")
 @login_required
 def export_inventory_csv(sklad):
@@ -1201,42 +1204,79 @@ def export_inventory_csv(sklad):
         flash("Nemáte oprávnění k exportu tohoto skladu.", "danger")
         return redirect(url_for("dashboard"))
 
-    # Příprava dat (podobně jako u PDF exportu)
     velikosti = {
         "saty":    list(range(32, 56, 2)),
         "boty":    list(range(36, 43)),
-        "doplnky": [0],
-        "ostatni": [0]
+        "doplnky": [UNIVERSAL_SIZE],
+        "ostatni": [UNIVERSAL_SIZE]
     }
     
+    # 1. Optimalizace: Načteme skladové zásoby najednou do slovníku
+    all_stock_records = Stock.query.filter_by(sklad=sklad).all()
+    stock_map = {(s.product_id, s.size): s.quantity for s in all_stock_records}
+    
+    # 2. Načteme produkty a roztřídíme je
     produkty = Product.query.order_by(Product.name).all()
-    
-    # Vytvoření CSV v paměti
-    si = StringIO()
-    cw = csv.writer(si, delimiter=';') # Středník je pro český Excel nejlepší
-    
-    # Hlavička tabulky
-    cw.writerow(['Kategorie', 'Název', 'Barva', 'Záda', 'Velikost', 'Množství'])
-    
+    prod_by_cat = {"saty": [], "boty": [], "doplnky": [], "ostatni": []}
     for p in produkty:
-        for v in velikosti[p.category]:
-            st = Stock.query.filter_by(product_id=p.id, sklad=sklad, size=v).first()
-            qty = st.quantity if st else 0
-            
-            # Zapíšeme řádek jen pokud je množství nenulové (nepovinné, ale přehlednější)
-            if qty > 0:
-                cw.writerow([
-                    p.category, 
-                    p.name, 
-                    p.color or '-', 
-                    p.back_solution or '-', 
-                    v if v != 0 else 'Uni', 
-                    qty
-                ])
+        prod_by_cat[p.category].append(p)
 
-    output = make_response(si.getvalue())
+    # 3. Příprava CSV
+    si = StringIO()
+    cw = csv.writer(si, delimiter=';') # Středník odděluje buňky v českém Excelu
+    
+    # 4. Generování bloků pro každou kategorii
+    for cat, label in [("saty", "ŠATY"), ("boty", "BOTY"), ("doplnky", "DOPLŇKY"), ("ostatni", "OSTATNÍ")]:
+        if not prod_by_cat[cat]:
+            continue # Pokud v kategorii nic není, přeskočíme ji
+            
+        # Hlavička sekce
+        cw.writerow([f"--- {label} ---"])
+        
+        # Názvy sloupců podle kategorie
+        if cat == "saty":
+            header = ["Název", "Barva", "Řešení zad"] + [str(v) for v in velikosti[cat]] + ["Celkem"]
+        elif cat == "boty":
+            header = ["Název"] + [str(v) for v in velikosti[cat]] + ["Celkem"]
+        elif cat == "doplnky":
+            header = ["Název", "Barva", "Množství"]
+        else: # ostatni
+            header = ["Název", "Množství"]
+        
+        cw.writerow(header)
+        
+        # Samotná data produktů
+        for p in prod_by_cat[cat]:
+            row = []
+            if cat == "saty":
+                row.extend([p.name, p.color or "-", p.back_solution or "-"])
+            elif cat == "boty":
+                row.append(p.name)
+            elif cat == "doplnky":
+                row.extend([p.name, p.color or "-"])
+            else: # ostatni
+                row.append(p.name)
+            
+            celkem = 0
+            for v in velikosti[cat]:
+                qty = stock_map.get((p.id, v), 0)
+                row.append(qty)
+                if cat in ["saty", "boty"]:
+                    celkem += qty
+            
+            if cat in ["saty", "boty"]:
+                row.append(celkem)
+                
+            cw.writerow(row)
+        
+        # Prázdný řádek pro oddělení další kategorie
+        cw.writerow([])
+
+    # Magický trik s '\ufeff' (BOM) donutí Excel automaticky číst UTF-8 a opraví českou diakritiku!
+    output = make_response('\ufeff' + si.getvalue())
     output.headers["Content-Disposition"] = f"attachment; filename=inventura_{sklad}.csv"
-    output.headers["Content-type"] = "text/csv; charset=utf-16" # Podpora českých znaků
+    output.headers["Content-type"] = "text/csv; charset=utf-8"
+    
     return output
 
 
