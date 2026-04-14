@@ -1193,9 +1193,7 @@ def export_inventory(sklad):
 
 import csv
 from io import StringIO
-
-import csv
-from io import StringIO
+from flask import make_response, flash, redirect, url_for
 
 @app.route("/export/inventory/csv/<sklad>")
 @login_required
@@ -1207,11 +1205,11 @@ def export_inventory_csv(sklad):
     velikosti = {
         "saty":    list(range(32, 56, 2)),
         "boty":    list(range(36, 43)),
-        "doplnky": [UNIVERSAL_SIZE],
-        "ostatni": [UNIVERSAL_SIZE]
+        "doplnky": [0],
+        "ostatni": [0]
     }
     
-    # 1. Optimalizace: Načteme skladové zásoby najednou do slovníku
+    # 1. Načteme skladové zásoby najednou do slovníku
     all_stock_records = Stock.query.filter_by(sklad=sklad).all()
     stock_map = {(s.product_id, s.size): s.quantity for s in all_stock_records}
     
@@ -1223,12 +1221,12 @@ def export_inventory_csv(sklad):
 
     # 3. Příprava CSV
     si = StringIO()
-    cw = csv.writer(si, delimiter=';') # Středník odděluje buňky v českém Excelu
+    cw = csv.writer(si, delimiter=';')
     
     # 4. Generování bloků pro každou kategorii
     for cat, label in [("saty", "ŠATY"), ("boty", "BOTY"), ("doplnky", "DOPLŇKY"), ("ostatni", "OSTATNÍ")]:
         if not prod_by_cat[cat]:
-            continue # Pokud v kategorii nic není, přeskočíme ji
+            continue
             
         # Hlavička sekce
         cw.writerow([f"--- {label} ---"])
@@ -1260,19 +1258,21 @@ def export_inventory_csv(sklad):
             celkem = 0
             for v in velikosti[cat]:
                 qty = stock_map.get((p.id, v), 0)
-                row.append(qty)
+                
+                # ZMĚNA ZDE: Místo nuly vložíme prázdný text ""
+                row.append(qty if qty > 0 else "")
+                
                 if cat in ["saty", "boty"]:
                     celkem += qty
             
             if cat in ["saty", "boty"]:
-                row.append(celkem)
+                # ZMĚNA ZDE: Sloupec "Celkem" bude také prázdný, pokud je výsledek 0
+                row.append(celkem if celkem > 0 else "")
                 
             cw.writerow(row)
         
-        # Prázdný řádek pro oddělení další kategorie
         cw.writerow([])
 
-    # Magický trik s '\ufeff' (BOM) donutí Excel automaticky číst UTF-8 a opraví českou diakritiku!
     output = make_response('\ufeff' + si.getvalue())
     output.headers["Content-Disposition"] = f"attachment; filename=inventura_{sklad}.csv"
     output.headers["Content-type"] = "text/csv; charset=utf-8"
