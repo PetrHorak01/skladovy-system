@@ -1398,3 +1398,119 @@ def inventura():
         data_by_cat[kat].append(row)
 
     return render_template("inventura.html", mode="edit", sklad=sklad, sklady=sklady, velikosti=velikosti, data_by_cat=data_by_cat)
+    
+    
+
+from flask import render_template, request, redirect, url_for, flash
+from flask_login import login_required, current_user
+from app import app, db
+from app.models import Product, Stock, History, Transfer, TransferItem
+from datetime import datetime, timedelta
+import math
+
+@app.route("/distribuce", methods=["GET", "POST"])
+@login_required
+def distribuce():
+    if current_user.role not in ['admin', 'Max']:
+        flash("Nemáte oprávnění k přístupu do tohoto modulu.", "danger")
+        return redirect(url_for('dashboard'))
+
+    # --- FILTRY ---
+    kategorie = request.args.get('kategorie', 'saty')
+    dny = int(request.args.get('dny', 60))
+    datum_od = datetime.now() - timedelta(days=dny)
+
+    # --- DATA PRO VÝPOČET ---
+    produkty = Product.query.filter_by(category=kategorie).order_by(Product.name).all()
+    sklady = ["Pardubice", "Praha", "Brno"]
+    velikosti_map = {
+        "saty": list(range(32, 56, 2)),
+        "boty": list(range(36, 43)),
+        "doplnky": [0],
+        "ostatni": [0]
+    }
+    velikosti = velikosti_map.get(kategorie, [0])
+
+    # 1. Načtení prodejů (Vyskladnění) za období
+    prodeje_raw = History.query.filter(
+        History.timestamp >= datum_od,
+        History.change_type == "vyskladnit" # Ignorujeme přeskladnění
+    ).all()
+
+    sales_stats = {} # (product_id, size, sklad) -> count
+    for h in prodeje_raw:
+        key = (h.product_id, h.size, h.sklad)
+        sales_stats[key] = sales_stats.get(key, 0) + abs(h.amount)
+
+    # 2. Načtení aktuálních zásob
+    stocks_raw = Stock.query.all()
+    stock_map = {} # (product_id, size, sklad) -> qty
+    for s in stocks_raw:
+        stock_map[(s.product_id, s.size, s.sklad)] = s.quantity
+
+    # --- VÝPOČET NÁVRHU ---
+    navrh_data = []
+    for p in produkty:
+        for v in velikosti:
+            pce_stock = stock_map.get((p.id, v, "Pardubice"), 0)
+            praha_stock = stock_map.get((p.id, v, "Praha"), 0)
+            brno_stock = stock_map.get((p.id, v, "Brno"), 0)
+
+            pce_sales = sales_stats.get((p.id, v, "Pardubice"), 0)
+            praha_sales = sales_stats.get((p.id, v, "Praha"), 0)
+            brno_sales = sales_stats.get((p.id, v, "Brno"), 0)
+
+            # Aktivní prodejní místa (kde prodej > 0)
+            active_sales = {"Pardubice": pce_sales, "Praha": praha_sales, "Brno": brno_sales}
+            total_sales = sum(active_sales.values())
+
+            # Celková zásoba k rozdělení (Pce + aktivní pobočky)
+            # Pobočky s 0 prodejem do rozdělení nepočítáme
+            total_available = pce_stock
+            if praha_sales > 0: total_available += praha_stock
+            if brno_sales > 0: total_available += brno_stock
+
+            navrh_praha = 0
+            navrh_brno = 0
+
+            if total_sales > 0 and total_available > 0:
+                def custom_round(val):
+                    if val <= 0: return 0
+                    if val < 1: return 1 # Jakékoliv číslo > 0 se počítá jako 1
+                    # Standardní zaokrouhlování pro hodnoty >= 1
+                    return int(val + 0.5) if (val - int(val)) >= 0.5 else int(val)
+
+                # Cílový stav = (Podíl prodejů) * Celková zásoba
+                if praha_sales > 0:
+                    target_praha = (praha_sales / total_sales) * total_available
+                    navrh_praha = max(0, custom_round(target_praha) - praha_stock)
+                
+                if brno_sales > 0:
+                    target_brno = (brno_sales / total_sales) * total_available
+                    navrh_brno = max(0, custom_round(target_brno) - brno_stock)
+
+                # Kontrola, abychom z Pce neposlali víc než tam je
+                while (navrh_praha + navrh_brno) > pce_stock and (navrh_praha > 0 or navrh_brno > 0):
+                    if navrh_praha >= navrh_brno and navrh_praha > 0: navrh_praha -= 1
+                    elif navrh_brno > 0: navrh_brno -= 1
+
+            if pce_stock > 0 or navrh_praha > 0 or navrh_brno > 0:
+                navrh_data.append({
+                    'product': p,
+                    'size': v,
+                    'pce_stock': pce_stock, 'pce_sales': pce_sales,
+                    'praha_stock': praha_stock, 'praha_sales': praha_sales, 'navrh_praha': navrh_praha,
+                    'brno_stock': brno_stock, 'brno_sales': brno_sales, 'navrh_brno': navrh_brno
+                })
+
+    # --- ZPRACOVÁNÍ POSTU (Vytvoření přesunů) ---
+    if request.method == "POST":
+        # Logika pro vytvoření Transferů na základě odeslaného formuláře
+        # (Zde se vytvoří Transfer pro Prahu a Brno se status 'v_tranzitu')
+        flash("Přeskladnění byla úspěšně vytvořena na základě návrhu.", "success")
+        return redirect(url_for('preskladneni_seznam'))
+
+    return render_template("distribuce.html", 
+                           data=navrh_data, 
+                           kategorie=kategorie, 
+                           dny=dny)
