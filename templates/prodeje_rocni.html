@@ -43,14 +43,20 @@
                 {% if jmeno == 'Celkem' %}
                   <tr class="table-dark fw-bold">
                     <td class="text-end px-3 py-2">CELKEM:</td>
-                    <td class="py-2">{{ data[jmeno]["zkousky"] }}</td>
+                    <td class="py-2">
+                      {{ data[jmeno]["zkousky_celkem"] }}
+                      <br><small class="text-muted fw-normal">(C: {{ data[jmeno]["zkousky_classic"] }} | D: {{ data[jmeno]["zkousky_deluxe"] }})</small>
+                    </td>
                     <td class="py-2 text-success">{{ data[jmeno]["prodeje"] }}</td>
                     <td class="py-2 text-warning">{{ data[jmeno]["uspesnost"] }}</td>
                   </tr>
                 {% else %}
                   <tr>
                     <td class="text-start px-3 fw-medium">{{ jmeno }}</td>
-                    <td>{{ data[jmeno]["zkousky"] }}</td>
+                    <td>
+                      <span class="fs-6 fw-bold">{{ data[jmeno]["zkousky_celkem"] }}</span>
+                      <small class="text-muted ms-1">(C: {{ data[jmeno]["zkousky_classic"] }} | D: {{ data[jmeno]["zkousky_deluxe"] }})</small>
+                    </td>
                     <td class="fw-bold text-success">{{ data[jmeno]["prodeje"] }}</td>
                     <td class="text-muted">{{ data[jmeno]["uspesnost"] }}</td>
                   </tr>
@@ -78,14 +84,21 @@
     new Chart(ctx, {
       type: 'bar',
       data: {
-        // Vyfiltrujeme 'Celkem', abychom to v grafu nemíchali s jednotlivci
         labels: [{% for u in uzivatele if u != 'Celkem' %}"{{ u }}",{% endfor %}],
         datasets: [
           {
-            label: 'Zkoušky',
-            data: [{% for u in uzivatele if u != 'Celkem' %}{{ data[u]['zkousky'] }},{% endfor %}],
-            backgroundColor: 'rgba(13, 110, 253, 0.7)', // Modrá
-            borderColor: 'rgba(13, 110, 253, 1)',
+            label: 'Zkoušky Classic',
+            data: [{% for u in uzivatele if u != 'Celkem' %}{{ data[u]['zkousky_classic'] }},{% endfor %}],
+            backgroundColor: 'rgba(255, 193, 7, 0.7)', // Žlutá
+            borderColor: 'rgba(255, 193, 7, 1)',
+            borderWidth: 1,
+            borderRadius: 4
+          },
+          {
+            label: 'Zkoušky DeLuxe',
+            data: [{% for u in uzivatele if u != 'Celkem' %}{{ data[u]['zkousky_deluxe'] }},{% endfor %}],
+            backgroundColor: 'rgba(220, 53, 69, 0.7)', // Červená
+            borderColor: 'rgba(220, 53, 69, 1)',
             borderWidth: 1,
             borderRadius: 4
           },
@@ -103,7 +116,7 @@
         responsive: true,
         plugins: {
           legend: { position: 'top' },
-          title: { display: true, text: 'Porovnání zkoušek a prodejů' }
+          title: { display: true, text: 'Porovnání typů zkoušek a prodejů' }
         },
         scales: { y: { beginAtZero: true } }
       }

@@ -637,31 +637,60 @@ def prodeje():
     uzivatele = User.query.filter(User.role != "admin").order_by(User.username).all()
     jmena_uzivatelu = [u.username for u in uzivatele]
 
-    data = defaultdict(lambda: {"zkousky": 0, "prodeje": 0})
+    data = defaultdict(lambda: {"zkousky_celkem": 0, "zkousky_classic": 0, "zkousky_deluxe": 0, "prodeje": 0})
 
     if mesic == "rocni_prehled":
         zaznamy = Sales.query.filter_by(year=vybrany_rok).all()
-        for z in zaznamy:
-            data[z.user]["zkousky"] += z.tries
-            data[z.user]["prodeje"] += z.sales
+        start_date = datetime(vybrany_rok, 1, 1)
+        end_date = datetime(vybrany_rok + 1, 1, 1)
+        historie = History.query.filter(
+            History.timestamp >= start_date,
+            History.timestamp < end_date,
+            History.change_type.in_(["zkoušky classic", "zkoušky deluxe"])
+        ).all()
     else:
         mesic_int = int(mesic) if mesic else aktualni_datum.month
         zaznamy = Sales.query.filter_by(year=vybrany_rok, month=mesic_int).all()
-        for z in zaznamy:
-            data[z.user]["zkousky"] = z.tries
-            data[z.user]["prodeje"] = z.sales
         mesic = mesic_int
+        
+        start_date = datetime(vybrany_rok, mesic_int, 1)
+        end_date = datetime(vybrany_rok + 1, 1, 1) if mesic_int == 12 else datetime(vybrany_rok, mesic_int + 1, 1)
+        historie = History.query.filter(
+            History.timestamp >= start_date,
+            History.timestamp < end_date,
+            History.change_type.in_(["zkoušky classic", "zkoušky deluxe"])
+        ).all()
+
+    for z in zaznamy:
+        data[z.user]["zkousky_celkem"] += z.tries
+        data[z.user]["prodeje"] += z.sales
+        
+    for h in historie:
+        # Rozparsování jména uživatele, kdyby to zadal Admin za někoho jiného
+        real_user = h.note.split(" – ")[0] if h.note and " – " in h.note else h.user
+        if h.change_type == "zkoušky classic":
+            data[real_user]["zkousky_classic"] += h.amount
+        elif h.change_type == "zkoušky deluxe":
+            data[real_user]["zkousky_deluxe"] += h.amount
 
     for jmeno in jmena_uzivatelu:
-        zk = data[jmeno]["zkousky"]
+        zk = data[jmeno]["zkousky_celkem"]
         pr = data[jmeno]["prodeje"]
         data[jmeno]["uspesnost"] = f"{(pr / zk * 100):.1f} %" if zk > 0 else "-"
 
-    celkem_zkousky = sum(data[j]["zkousky"] for j in jmena_uzivatelu)
+    celkem_zkousky = sum(data[j]["zkousky_celkem"] for j in jmena_uzivatelu)
+    celkem_classic = sum(data[j]["zkousky_classic"] for j in jmena_uzivatelu)
+    celkem_deluxe = sum(data[j]["zkousky_deluxe"] for j in jmena_uzivatelu)
     celkem_prodeje = sum(data[j]["prodeje"] for j in jmena_uzivatelu)
     celkem_uspesnost = f"{(celkem_prodeje / celkem_zkousky * 100):.1f} %" if celkem_zkousky > 0 else "-"
 
-    data["Celkem"] = {"zkousky": celkem_zkousky, "prodeje": celkem_prodeje, "uspesnost": celkem_uspesnost}
+    data["Celkem"] = {
+        "zkousky_celkem": celkem_zkousky, 
+        "zkousky_classic": celkem_classic, 
+        "zkousky_deluxe": celkem_deluxe, 
+        "prodeje": celkem_prodeje, 
+        "uspesnost": celkem_uspesnost
+    }
     jmena_uzivatelu.append("Celkem")
 
     return render_template(
@@ -682,18 +711,20 @@ def zapsat_prodej():
 
     if request.method == "POST":
         try:
-            zkusky = int(request.form.get("zkousky", 0))
+            zkousky_classic = int(request.form.get("zkousky_classic", 0))
+            zkousky_deluxe = int(request.form.get("zkousky_deluxe", 0))
             prodeje = int(request.form.get("prodeje", 0))
         except ValueError:
             flash("Zadejte platná čísla.")
             return redirect(url_for("prodeje"))
+
+        zkusky_celkem = zkousky_classic + zkousky_deluxe
 
         username = current_user.username
         dnes = datetime.now()
         rok = dnes.year
         mesic = dnes.month
 
-        # MAX MÁ PŘÍSTUP K VÝBĚRU UŽIVATELE
         if current_user.role in ["admin", "Max"]:
             if "uzivatel" in request.form:
                 username = request.form["uzivatel"]
@@ -708,12 +739,16 @@ def zapsat_prodej():
             zaznam = Sales(user=username, year=rok, month=mesic, tries=0, sales=0)
             db.session.add(zaznam)
 
-        zaznam.tries += zkusky
+        # Do tabulky Sales se pošle už rovnou sečtené číslo (kompatibilita se starou databází)
+        zaznam.tries += zkusky_celkem
         zaznam.sales += prodeje
         timestamp = datetime.now()
 
-        if zkusky != 0:
-            db.session.add(History(user=current_user.username, sklad="Prodeje", product_id=None, size=None, change_type="zkoušky", amount=zkusky, timestamp=timestamp, note=f"{username} – {nazvy_mesicu[mesic]} {rok}"))
+        # Do historie se zapíšou obě hodnoty odděleně, pokud jsou vyplněné
+        if zkousky_classic != 0:
+            db.session.add(History(user=current_user.username, sklad="Prodeje", product_id=None, size=None, change_type="zkoušky classic", amount=zkousky_classic, timestamp=timestamp, note=f"{username} – {nazvy_mesicu[mesic]} {rok}"))
+        if zkousky_deluxe != 0:
+            db.session.add(History(user=current_user.username, sklad="Prodeje", product_id=None, size=None, change_type="zkoušky deluxe", amount=zkousky_deluxe, timestamp=timestamp, note=f"{username} – {nazvy_mesicu[mesic]} {rok}"))
         if prodeje != 0:
             db.session.add(History(user=current_user.username, sklad="Prodeje", product_id=None, size=None, change_type="prodej", amount=prodeje, timestamp=timestamp, note=f"{username} – {nazvy_mesicu[mesic]} {rok}"))
 
@@ -735,25 +770,50 @@ def prodeje_rocni():
     uzivatele = User.query.filter(User.role != "admin").order_by(User.username).all()
     jmena_uzivatelu = [u.username for u in uzivatele]
 
-    data = defaultdict(lambda: {"zkousky": 0, "prodeje": 0})
+    data = defaultdict(lambda: {"zkousky_celkem": 0, "zkousky_classic": 0, "zkousky_deluxe": 0, "prodeje": 0})
+    
     zaznamy = Sales.query.filter_by(year=vybrany_rok).all()
     for z in zaznamy:
-        data[z.user]["zkousky"] += z.tries
+        data[z.user]["zkousky_celkem"] += z.tries
         data[z.user]["prodeje"] += z.sales
 
+    start_date = datetime(vybrany_rok, 1, 1)
+    end_date = datetime(vybrany_rok + 1, 1, 1)
+    historie = History.query.filter(
+        History.timestamp >= start_date,
+        History.timestamp < end_date,
+        History.change_type.in_(["zkoušky classic", "zkoušky deluxe"])
+    ).all()
+
+    for h in historie:
+        real_user = h.note.split(" – ")[0] if h.note and " – " in h.note else h.user
+        if h.change_type == "zkoušky classic":
+            data[real_user]["zkousky_classic"] += h.amount
+        elif h.change_type == "zkoušky deluxe":
+            data[real_user]["zkousky_deluxe"] += h.amount
+
     for jmeno in jmena_uzivatelu:
-        zk = data[jmeno]["zkousky"]
+        zk = data[jmeno]["zkousky_celkem"]
         pr = data[jmeno]["prodeje"]
         data[jmeno]["uspesnost"] = f"{(pr / zk * 100):.1f} %" if zk > 0 else "-"
 
-    celkem_zkousky = sum(data[j]["zkousky"] for j in jmena_uzivatelu)
+    celkem_zkousky = sum(data[j]["zkousky_celkem"] for j in jmena_uzivatelu)
+    celkem_classic = sum(data[j]["zkousky_classic"] for j in jmena_uzivatelu)
+    celkem_deluxe = sum(data[j]["zkousky_deluxe"] for j in jmena_uzivatelu)
     celkem_prodeje = sum(data[j]["prodeje"] for j in jmena_uzivatelu)
     celkem_uspesnost = f"{(celkem_prodeje / celkem_zkousky * 100):.1f} %" if celkem_zkousky > 0 else "-"
     
-    data["Celkem"] = {"zkousky": celkem_zkousky, "prodeje": celkem_prodeje, "uspesnost": celkem_uspesnost}
+    data["Celkem"] = {
+        "zkousky_celkem": celkem_zkousky, 
+        "zkousky_classic": celkem_classic, 
+        "zkousky_deluxe": celkem_deluxe, 
+        "prodeje": celkem_prodeje, 
+        "uspesnost": celkem_uspesnost
+    }
     jmena_uzivatelu.append("Celkem")
 
     return render_template("prodeje_rocni.html", rok=vybrany_rok, data=data, uzivatele=jmena_uzivatelu, dostupne_roky=dostupne_roky)
+
 
 @app.route("/prescasy")
 @login_required

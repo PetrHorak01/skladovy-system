@@ -7,7 +7,7 @@
 </div>
 
 <div class="row justify-content-center">
-  <div class="col-md-8 col-lg-6">
+  <div class="col-md-8 col-lg-7">
     <div class="card shadow-sm border-0 mb-4">
       <div class="card-header bg-success text-white py-3">
         <h5 class="mb-0 fw-bold fs-6">📝 Nový záznam o prodeji</h5>
@@ -38,15 +38,17 @@
           {% endif %}
 
           <div class="row mb-4">
-            <div class="col-6">
-              <label for="zkousky" class="form-label fw-bold text-muted small">👗 Počet zkoušek</label>
-              <!-- Odstraněn atribut min="0" pro umožnění záporných hodnot (opravy) -->
-              <input type="number" name="zkousky" id="zkousky" class="form-control shadow-none border-info-subtle fs-4 text-center fw-bold text-info py-2" required>
+            <div class="col-4">
+              <label for="zkousky_classic" class="form-label fw-bold text-muted small">🟡 Zkoušky Classic</label>
+              <input type="number" name="zkousky_classic" id="zkousky_classic" class="form-control shadow-none border-warning fs-4 text-center fw-bold text-warning-emphasis py-2" value="0" required>
             </div>
-            <div class="col-6">
+            <div class="col-4">
+              <label for="zkousky_deluxe" class="form-label fw-bold text-muted small">🔴 Zkoušky DeLuxe</label>
+              <input type="number" name="zkousky_deluxe" id="zkousky_deluxe" class="form-control shadow-none border-danger-subtle fs-4 text-center fw-bold text-danger-emphasis py-2" value="0" required>
+            </div>
+            <div class="col-4">
               <label for="prodeje" class="form-label fw-bold text-muted small">🛍️ Počet prodejů</label>
-              <!-- Odstraněn atribut min="0" pro umožnění záporných hodnot (vratky) -->
-              <input type="number" name="prodeje" id="prodeje" class="form-control shadow-none border-success-subtle fs-4 text-center fw-bold text-success py-2" required>
+              <input type="number" name="prodeje" id="prodeje" class="form-control shadow-none border-success-subtle fs-4 text-center fw-bold text-success py-2" value="0" required>
             </div>
           </div>
 
