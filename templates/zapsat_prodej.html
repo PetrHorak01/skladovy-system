@@ -40,11 +40,13 @@
           <div class="row mb-4">
             <div class="col-6">
               <label for="zkousky" class="form-label fw-bold text-muted small">👗 Počet zkoušek</label>
-              <input type="number" name="zkousky" id="zkousky" class="form-control shadow-none border-info-subtle fs-4 text-center fw-bold text-info py-2" required min="0">
+              <!-- Odstraněn atribut min="0" pro umožnění záporných hodnot (opravy) -->
+              <input type="number" name="zkousky" id="zkousky" class="form-control shadow-none border-info-subtle fs-4 text-center fw-bold text-info py-2" required>
             </div>
             <div class="col-6">
               <label for="prodeje" class="form-label fw-bold text-muted small">🛍️ Počet prodejů</label>
-              <input type="number" name="prodeje" id="prodeje" class="form-control shadow-none border-success-subtle fs-4 text-center fw-bold text-success py-2" required min="0">
+              <!-- Odstraněn atribut min="0" pro umožnění záporných hodnot (vratky) -->
+              <input type="number" name="prodeje" id="prodeje" class="form-control shadow-none border-success-subtle fs-4 text-center fw-bold text-success py-2" required>
             </div>
           </div>
 
