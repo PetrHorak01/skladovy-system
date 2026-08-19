@@ -31,6 +31,14 @@ class Product(db.Model):
     color         = db.Column(db.String(32), nullable=True)
     back_solution = db.Column(db.String(64), nullable=True)
 
+    # Označení produktu, který je v doprodeji
+    doprodej = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default=db.false()
+    )
+
     # vztah na Stock, potlačí SAWarning ohledně "stocks" a "product"
     stock = db.relationship(
         'Stock',

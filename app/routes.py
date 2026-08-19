@@ -17,7 +17,6 @@ from app.forms import (
 )
 from datetime import datetime, timedelta
 from collections import defaultdict
-from weasyprint import HTML
 from io import BytesIO
 from sqlalchemy import func
 
@@ -68,8 +67,12 @@ def dashboard():
     active_tab = request.args.get("tab", "saty")
 
     produkty_q = Product.query
+
     if hledat:
-        produkty_q = produkty_q.filter(Product.name.ilike(f"%{hledat}%"))
+        produkty_q = produkty_q.filter(
+            Product.name.ilike(f"%{hledat}%")
+        )
+
     produkty = produkty_q.order_by(Product.name).all()
 
     velikosti_saty = list(range(32, 56, 2))
@@ -86,11 +89,18 @@ def dashboard():
             if selected_sklad != "Celkem"
             else True
         )
-        .group_by(Stock.product_id, Stock.size)
-        .having(func.sum(Stock.quantity) > 0)
+        .group_by(
+            Stock.product_id,
+            Stock.size
+        )
+        .having(
+            func.sum(Stock.quantity) > 0
+        )
         .all()
     )
+
     qty_map = defaultdict(dict)
+
     for pid, size, qty in stock_rows:
         qty_map[pid][size] = qty
 
@@ -105,29 +115,60 @@ def dashboard():
             "name": p.name,
             "color": p.color,
             "back_solution": p.back_solution,
+            "doprodej": p.doprodej,
             "sizes": qty_map.get(p.id, {})
         }
+
         if p.category == "saty":
             tabulka_saty.append(base)
+
         elif p.category == "boty":
             tabulka_boty.append(base)
+
         elif p.category == "doplnky":
-            base["sizes"][UNIVERSAL_SIZE] = qty_map.get(p.id, {}).get(UNIVERSAL_SIZE, 0)
+            base["sizes"][UNIVERSAL_SIZE] = (
+                qty_map
+                .get(p.id, {})
+                .get(UNIVERSAL_SIZE, 0)
+            )
             tabulka_doplnky.append(base)
+
         elif p.category == "ostatni":
-            base["sizes"][UNIVERSAL_SIZE] = qty_map.get(p.id, {}).get(UNIVERSAL_SIZE, 0)
+            base["sizes"][UNIVERSAL_SIZE] = (
+                qty_map
+                .get(p.id, {})
+                .get(UNIVERSAL_SIZE, 0)
+            )
             tabulka_ostatni.append(base)
 
-    all_stock_records = Stock.query.filter(Stock.sklad == selected_sklad).all()
+    all_stock_records = Stock.query.filter(
+        Stock.sklad == selected_sklad
+    ).all()
+
     stocks = {
         (stock.product_id, stock.size, stock.sklad): stock
         for stock in all_stock_records
     }
-    
-    saty_grand_total = sum(sum(p['sizes'].values()) for p in tabulka_saty)
-    boty_grand_total = sum(sum(p['sizes'].values()) for p in tabulka_boty)
-    doplnky_grand_total = sum(p['sizes'].get(UNIVERSAL_SIZE, 0) for p in tabulka_doplnky)
-    ostatni_grand_total = sum(p['sizes'].get(UNIVERSAL_SIZE, 0) for p in tabulka_ostatni)
+
+    saty_grand_total = sum(
+        sum(p["sizes"].values())
+        for p in tabulka_saty
+    )
+
+    boty_grand_total = sum(
+        sum(p["sizes"].values())
+        for p in tabulka_boty
+    )
+
+    doplnky_grand_total = sum(
+        p["sizes"].get(UNIVERSAL_SIZE, 0)
+        for p in tabulka_doplnky
+    )
+
+    ostatni_grand_total = sum(
+        p["sizes"].get(UNIVERSAL_SIZE, 0)
+        for p in tabulka_ostatni
+    )
 
     return render_template(
         "dashboard.html",
@@ -164,17 +205,21 @@ def produkty():
 
     kategorie = ["saty", "boty", "doplnky", "ostatni"]
     vybrana_kategorie = request.args.get("kategorie", "saty")
+
     if vybrana_kategorie not in kategorie:
         vybrana_kategorie = "saty"
 
     form = AddProductForm()
+
     if form.validate_on_submit():
         produkt = Product(
             name=form.name.data,
             category=vybrana_kategorie,
             color=form.color.data if vybrana_kategorie in ["saty", "doplnky"] else None,
-            back_solution=form.back_solution.data if vybrana_kategorie == "saty" else None
+            back_solution=form.back_solution.data if vybrana_kategorie == "saty" else None,
+            doprodej=form.doprodej.data
         )
+
         db.session.add(produkt)
         db.session.flush()
 
@@ -182,21 +227,55 @@ def produkty():
             velikosti = list(range(32, 56, 2))
         elif vybrana_kategorie == "boty":
             velikosti = list(range(36, 43))
-        else: 
+        else:
             velikosti = [UNIVERSAL_SIZE]
 
         for sklad in ["Praha", "Brno", "Pardubice", "Ostrava"]:
             for size in velikosti:
-                db.session.add(Stock(product_id=produkt.id, sklad=sklad, size=size, quantity=0))
-            db.session.add(Stock(product_id=produkt.id, sklad=sklad, size=None, quantity=0))
+                db.session.add(
+                    Stock(
+                        product_id=produkt.id,
+                        sklad=sklad,
+                        size=size,
+                        quantity=0
+                    )
+                )
+
+            db.session.add(
+                Stock(
+                    product_id=produkt.id,
+                    sklad=sklad,
+                    size=None,
+                    quantity=0
+                )
+            )
 
         db.session.commit()
-        flash("Produkt byl přidán.")
-        return redirect(url_for("produkty", kategorie=vybrana_kategorie))
 
-    produkty = Product.query.filter_by(category=vybrana_kategorie).order_by(Product.name).all()
+        flash("Produkt byl přidán.")
+        return redirect(
+            url_for(
+                "produkty",
+                kategorie=vybrana_kategorie
+            )
+        )
+
+    produkty = (
+        Product.query
+        .filter_by(category=vybrana_kategorie)
+        .order_by(Product.name)
+        .all()
+    )
+
     uprava = request.view_args.get("uprava", None)
-    return render_template("produkty.html", form=form, produkty=produkty, vybrana_kategorie=vybrana_kategorie, uprava=uprava)
+
+    return render_template(
+        "produkty.html",
+        form=form,
+        produkty=produkty,
+        vybrana_kategorie=vybrana_kategorie,
+        uprava=uprava
+    )
 
 
 @app.route("/produkty/edit/<int:product_id>", methods=["GET", "POST"])
@@ -208,22 +287,50 @@ def edit_product(product_id):
         return redirect(url_for("dashboard"))
 
     produkt = Product.query.get_or_404(product_id)
+
     form = AddProductForm(obj=produkt)
+
     if form.validate_on_submit():
         produkt.name = form.name.data
+
         if produkt.category in ["saty", "doplnky"]:
             produkt.color = form.color.data
+
         if produkt.category == "saty":
             produkt.back_solution = form.back_solution.data
+
+        produkt.doprodej = form.doprodej.data
+
         db.session.commit()
+
         flash("Produkt upraven.")
-        return redirect(url_for("produkty", kategorie=produkt.category))
+
+        return redirect(
+            url_for(
+                "produkty",
+                kategorie=produkt.category
+            )
+        )
 
     form.name.data = produkt.name
     form.color.data = produkt.color
     form.back_solution.data = produkt.back_solution
-    produkty = Product.query.filter_by(category=produkt.category).order_by(Product.name).all()
-    return render_template("produkty.html", form=form, produkty=produkty, vybrana_kategorie=produkt.category, uprava=produkt.id)
+    form.doprodej.data = produkt.doprodej
+
+    produkty = (
+        Product.query
+        .filter_by(category=produkt.category)
+        .order_by(Product.name)
+        .all()
+    )
+
+    return render_template(
+        "produkty.html",
+        form=form,
+        produkty=produkty,
+        vybrana_kategorie=produkt.category,
+        uprava=produkt.id
+    )
 
 @app.route("/produkty/delete/<int:product_id>", methods=["POST"])
 @login_required
@@ -1176,6 +1283,8 @@ def preskladneni_archiv():
 @app.route("/export/transfer/<int:transfer_id>")
 @login_required
 def export_transfer(transfer_id):
+    from weasyprint import HTML
+
     transfer = Transfer.query.get_or_404(transfer_id)
     if not (
         current_user.role in ["admin", "Max"]
@@ -1188,68 +1297,113 @@ def export_transfer(transfer_id):
     polozky = TransferItem.query.filter_by(transfer_id=transfer_id).all()
     produkty = {p.id: p for p in Product.query.all()}
     podrobnosti = []
+
     for pol in polozky:
         prod = produkty[pol.product_id]
         label = f"{prod.name}-{prod.color or '-'}-{prod.back_solution or '-'}"
         size_display = "-" if prod.category in ["doplnky", "ostatni"] else (pol.size or "-")
-        podrobnosti.append({"label": label, "size": size_display, "quantity": pol.quantity})
+        podrobnosti.append({
+            "label": label,
+            "size": size_display,
+            "quantity": pol.quantity
+        })
 
-    html = render_template("export_transfer.html", transfer=transfer, polozky=podrobnosti)
+    html = render_template(
+        "export_transfer.html",
+        transfer=transfer,
+        polozky=podrobnosti
+    )
     pdf = HTML(string=html).write_pdf()
 
     resp = make_response(pdf)
     resp.headers["Content-Type"] = "application/pdf"
     resp.headers["Content-Disposition"] = f"attachment; filename=preskladneni_{transfer.id}.pdf"
+
     return resp
 
 @app.route("/export/inventory", defaults={"sklad": None})
 @app.route("/export/inventory/<sklad>")
 @login_required
 def export_inventory(sklad):
+    from weasyprint import HTML
+
     sklady = ["Praha", "Brno", "Pardubice", "Ostrava"]
 
     if current_user.role in ["admin", "Max"] or current_user.sklad == "Pardubice":
         sklad = sklad or request.args.get("sklad", sklady[0])
+
         if sklad not in sklady:
             flash("Neplatný sklad.", "danger")
             return redirect(url_for("dashboard"))
     else:
         sklad = current_user.sklad
+
         if not sklad:
             flash("Nemáte přiřazen žádný sklad.", "danger")
             return redirect(url_for("dashboard"))
 
     velikosti = {
-        "saty":     list(range(32, 56, 2)),
-        "boty":     list(range(36, 43)),
-        "doplnky":  [UNIVERSAL_SIZE],
-        "ostatni":  [UNIVERSAL_SIZE]
+        "saty": list(range(32, 56, 2)),
+        "boty": list(range(36, 43)),
+        "doplnky": [UNIVERSAL_SIZE],
+        "ostatni": [UNIVERSAL_SIZE]
     }
 
     produkty = Product.query.order_by(Product.name).all()
-    products_by_category = {"saty": [], "boty": [], "doplnky": [], "ostatni": []}
-    
+    products_by_category = {
+        "saty": [],
+        "boty": [],
+        "doplnky": [],
+        "ostatni": []
+    }
+
     for p in produkty:
         qtys = {}
+
         for v in velikosti[p.category]:
-            st = Stock.query.filter_by(product_id=p.id, sklad=sklad, size=v).first()
+            st = Stock.query.filter_by(
+                product_id=p.id,
+                sklad=sklad,
+                size=v
+            ).first()
+
             qtys[v] = st.quantity if st else 0
-        
+
         if p.category in ["doplnky", "ostatni"]:
             products_by_category[p.category].append({
-                "name": p.name, "color": p.color, "quantity": qtys.get(UNIVERSAL_SIZE, 0)
+                "name": p.name,
+                "color": p.color,
+                "quantity": qtys.get(UNIVERSAL_SIZE, 0)
             })
         else:
-             products_by_category[p.category].append({
-                "name": p.name, "color": p.color, "sizes": qtys, "back_solution": p.back_solution
+            products_by_category[p.category].append({
+                "name": p.name,
+                "color": p.color,
+                "sizes": qtys,
+                "back_solution": p.back_solution
             })
 
-    html = render_template("export_inventory.html", sklad=sklad, velikosti=velikosti, products_by_category=products_by_category)
-    pdf_bytes = HTML(string=html, base_url=request.host_url).write_pdf()
+    html = render_template(
+        "export_inventory.html",
+        sklad=sklad,
+        velikosti=velikosti,
+        products_by_category=products_by_category
+    )
+
+    pdf_bytes = HTML(
+        string=html,
+        base_url=request.host_url
+    ).write_pdf()
+
     buf = BytesIO(pdf_bytes)
     filename = f"inventura_{sklad}.pdf"
 
-    return send_file(buf, download_name=filename, mimetype="application/pdf", as_attachment=True)
+    return send_file(
+        buf,
+        download_name=filename,
+        mimetype="application/pdf",
+        as_attachment=True
+    )
 
 import csv
 from io import StringIO

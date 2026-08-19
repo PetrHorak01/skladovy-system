@@ -11,10 +11,19 @@ class LoginForm(FlaskForm):
     submit      = SubmitField('Přihlásit')
 
 class AddProductForm(FlaskForm):
-    name = StringField('Název produktu', validators=[DataRequired()])
+    name = StringField(
+        'Název produktu',
+        validators=[DataRequired()]
+    )
+
     category = HiddenField()
+
     color = StringField('Barva')
+
     back_solution = StringField('Řešení zad')
+
+    doprodej = BooleanField('Doprodej')
+
     submit = SubmitField('Přidat produkt')
 
 class StockForm(FlaskForm):
